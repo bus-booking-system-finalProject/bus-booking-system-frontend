@@ -1,0 +1,15 @@
+# Ignore dependencies, they are installed in the Dockerfile
+node_modules
+
+# Ignore build artifacts
+dist
+.dist
+
+# Ignore log files and environment variables
+*.log
+.env.local
+.env.development.local
+.env.production.local
+
+# Ignore Git
+.git

@@ -1,0 +1,20 @@
+services:
+  # This is your React app service
+  dev-app:
+    # Build the image from the Dockerfile in the current directory
+    build: .
+    container_name: web-frontend
+    ports:
+      # Map host port 5173 to container port 5173
+      - "5173:5173"
+    volumes:
+      # This is the magic for hot-reloading:
+      # 1. Mount the entire project directory
+      - .:/app
+      # 2. Use an anonymous volume to "un-mount" node_modules
+      #    This tells Docker to use the container's node_modules,
+      #    not the one on your host machine.
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:
