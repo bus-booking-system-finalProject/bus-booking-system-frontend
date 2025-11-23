@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite'
-import viteReact from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite';
+import viteReact from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath, URL } from 'node:url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -20,7 +20,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true
+    host: true,
   },
-  base: '/IA3-Web-Frontend/',
-})
+  base: '/bus-booking-system-frontend/',
+});
