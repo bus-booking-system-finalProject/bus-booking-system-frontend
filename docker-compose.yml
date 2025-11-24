@@ -1,6 +1,6 @@
 services:
   # This is your React app service
-  dev-app:
+  web-ui:
     # Build the image from the Dockerfile in the current directory
     build: .
     hostname: web-frontend

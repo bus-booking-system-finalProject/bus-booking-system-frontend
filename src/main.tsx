@@ -1,11 +1,11 @@
-import { StrictMode } from "react";
-import ReactDOM from "react-dom/client";
-import { RouterProvider, createRouter } from "@tanstack/react-router";
-import * as TanStackQueryProvider from "./integrations/tanstack-query/root-provider.tsx";
-import "./styles.css";
-import reportWebVitals from "./reportWebVitals.ts";
-import { routeTree } from "./routeTree.tsx";
-import { AuthProvider } from "./context/AuthContext.tsx";
+import { StrictMode } from 'react';
+import ReactDOM from 'react-dom/client';
+import { RouterProvider, createRouter } from '@tanstack/react-router';
+import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx';
+import './styles.css';
+import reportWebVitals from './reportWebVitals.ts';
+import { routeTree } from './routeTree.tsx';
+import { AuthProvider } from './context/AuthContext.tsx';
 
 const TanStackQueryProviderContext = TanStackQueryProvider.getContext();
 const router = createRouter({
@@ -13,29 +13,29 @@ const router = createRouter({
   context: {
     ...TanStackQueryProviderContext,
   },
-  defaultPreload: "intent",
+  defaultPreload: 'intent',
   scrollRestoration: true,
   defaultStructuralSharing: true,
   defaultPreloadStaleTime: 0,
 });
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router;
   }
 }
 
-const rootElement = document.getElementById("app");
+const rootElement = document.getElementById('app');
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
       <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
         <AuthProvider>
-          <RouterProvider router={router} basepath="/IA3-Web-Frontend/"/>
+          <RouterProvider router={router} basepath="/bus-booking-system-frontend/" />
         </AuthProvider>
       </TanStackQueryProvider.Provider>
-    </StrictMode>
+    </StrictMode>,
   );
 }
 

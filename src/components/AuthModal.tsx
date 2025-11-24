@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { FcGoogle as GoogleIcon } from 'react-icons/fc';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from '@tanstack/react-form';
@@ -21,6 +22,7 @@ import { LoginSchema, RegisterSchema } from '@/schemas/auth';
 import { useAuth } from '../context/AuthContext';
 import { loginUser, registerUser } from '@/lib/api/auth';
 import type { UserProfile } from '@/types/auth';
+import { getAPIUrl } from '@/config/api';
 import { useNavigate } from '@tanstack/react-router';
 // --------------------------------------------------------------------------
 
@@ -151,9 +153,32 @@ function LoginForm({
       </form.Subscribe>
 
       <Divider sx={{ my: 2 }}>hoặc</Divider>
-      <Button variant="outlined" fullWidth onClick={onSwitch}>
-        Bạn chưa có tài khoản? Đăng ký
+      <Button
+        variant="outlined"
+        fullWidth
+        startIcon={<GoogleIcon />}
+        href={getAPIUrl('user/oauth2/authorization/google')}
+      >
+        Đăng nhập với Google
       </Button>
+      <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          Bạn chưa có tài khoản?{' '}
+          <Typography
+            component="span"
+            variant="body2"
+            fontWeight="bold"
+            color="primary"
+            onClick={onSwitch}
+            sx={{
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            Đăng ký
+          </Typography>
+        </Typography>
+      </Box>
     </Box>
   );
 }
@@ -272,9 +297,34 @@ function RegisterForm({
       </form.Subscribe>
 
       <Divider sx={{ my: 2 }}>hoặc</Divider>
-      <Button variant="outlined" fullWidth onClick={onSwitch}>
-        Bạn đã có tài khoản? Đăng nhập
+
+      <Button
+        variant="outlined"
+        fullWidth
+        startIcon={<GoogleIcon />}
+        href={getAPIUrl('user/oauth2/authorization/google')}
+      >
+        Tiếp tục với Google
       </Button>
+
+      <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          Bạn đã có tài khoản?{' '}
+          <Typography
+            component="span"
+            variant="body2"
+            fontWeight="bold"
+            color="primary"
+            onClick={onSwitch}
+            sx={{
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            Đăng nhập
+          </Typography>
+        </Typography>
+      </Box>
     </Box>
   );
 }
