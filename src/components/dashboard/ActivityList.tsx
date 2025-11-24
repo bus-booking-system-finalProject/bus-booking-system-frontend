@@ -21,11 +21,11 @@ import { useAuth } from '@/context/AuthContext';
 import { activities } from '@/types/dashboard';
 
 const ActivityList: React.FC = () => {
-  const { userRole } = useAuth();
+  const { user } = useAuth();
 
   // Filter logic
   const visible = activities.filter(
-    (a) => !a.roleVisibility || (userRole && a.roleVisibility.includes(userRole)),
+    (a) => !a.roleVisibility || (user?.role && a.roleVisibility.includes(user.role)),
   );
 
   return (
@@ -141,12 +141,18 @@ const ActivityList: React.FC = () => {
                       </Typography>
                     }
                     secondary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          color: '#888',
+                        }}
+                      >
                         <AccessTimeIcon sx={{ fontSize: 14, color: '#888' }} />
-                        <Typography variant="caption" color="text.secondary">
-                          {a.timestamp}
-                        </Typography>
-                      </Box>
+                        {a.timestamp}
+                      </Typography>
                     }
                   />
                 </ListItem>

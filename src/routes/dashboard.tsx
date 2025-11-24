@@ -7,7 +7,7 @@ export const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/dashboard',
   component: () => (
-    <ProtectedRoute roles={['USER', 'ADMIN']}>
+    <ProtectedRoute roles={['ADMIN']}>
       <DashboardPage />
     </ProtectedRoute>
   ),

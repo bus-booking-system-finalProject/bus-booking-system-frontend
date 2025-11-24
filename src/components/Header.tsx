@@ -21,15 +21,18 @@ import {
   Dashboard as DashboardIcon, // Đổi tên import icon để tránh trùng tên component
 } from '@mui/icons-material';
 import AuthModal from './AuthModal';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useAuth } from '../context/AuthContext';
 
 const pages = ['Giới thiệu', 'Cổ đông', 'Liên hệ'];
 
 function Header() {
   const { isLoggedIn, user, logout } = useAuth();
+  const isAdmin = isLoggedIn && user?.role === 'ADMIN';
   const navigate = useNavigate();
+  const location = useLocation();
 
+  const currentPath = location.pathname;
   // --- STATE: Track active page ---
   const [activePage, setActivePage] = useState<string>('');
 
@@ -37,6 +40,10 @@ function Header() {
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const isActive = (path: string) => {
+    if (path === '/') return currentPath === '/'; // Trang chủ
+    return currentPath.startsWith(path);
+  };
   // --- Handlers ---
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget);
@@ -74,7 +81,6 @@ function Header() {
   };
 
   const handleNavigateDashboard = () => {
-    setActivePage('Dashboard'); // Set active state
     navigate({ to: '/dashboard' });
   };
 
@@ -188,23 +194,34 @@ function Header() {
             }}
           >
             {pages.map((page) => {
-              const isActive = activePage === page;
+              // Giả sử bạn map tên trang thành đường dẫn: 'Giới thiệu' -> '/gioi-thieu'
+              // Bạn có thể tùy chỉnh logic mapping này
+              const pathMap: Record<string, string> = {
+                'Giới thiệu': '/gioi-thieu',
+                'Cổ đông': '/co-dong',
+                'Liên hệ': '/lien-he',
+              };
+              const pagePath = pathMap[page] || '/';
+              const active = isActive(pagePath);
+
               return (
                 <Button
                   key={page}
-                  onClick={() => handlePageClick(page)}
+                  onClick={() => {
+                    handleCloseNavMenu();
+                    navigate({ to: pagePath }); // Điều hướng thật
+                  }}
                   sx={{
                     my: 2,
                     color: 'white',
                     display: 'block',
                     px: 2,
                     borderRadius: 2,
-                    // --- STYLE CHO TRẠNG THÁI ACTIVE ---
-                    bgcolor: isActive ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
-                    fontWeight: isActive ? 700 : 500, // Đậm hơn khi active
+                    // --- LOGIC ACTIVE DỰA TRÊN URL ---
+                    bgcolor: active ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
+                    fontWeight: active ? 700 : 500,
                     '&:hover': {
-                      // Khi hover: nếu đang active thì đậm thêm chút, nếu ko thì mờ nhẹ
-                      bgcolor: isActive ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                      bgcolor: active ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)',
                     },
                     transition: 'all 0.2s',
                   }}
@@ -215,7 +232,7 @@ function Header() {
             })}
 
             {/* Dashboard Button */}
-            {isLoggedIn && (
+            {isAdmin && (
               <Button
                 onClick={handleNavigateDashboard}
                 sx={{
@@ -225,14 +242,13 @@ function Header() {
                   ml: 1,
                   px: 2,
                   borderRadius: 2,
-                  // --- STYLE CHO DASHBOARD ACTIVE ---
-                  bgcolor: activePage === 'Dashboard' ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
-                  fontWeight: activePage === 'Dashboard' ? 700 : 500,
+                  // --- KIỂM TRA TRỰC TIẾP VỚI /dashboard ---
+                  bgcolor: isActive('/dashboard') ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
+                  fontWeight: isActive('/dashboard') ? 700 : 500,
                   '&:hover': {
-                    bgcolor:
-                      activePage === 'Dashboard'
-                        ? 'rgba(0, 0, 0, 0.3)'
-                        : 'rgba(255, 255, 255, 0.1)',
+                    bgcolor: isActive('/dashboard')
+                      ? 'rgba(0, 0, 0, 0.3)'
+                      : 'rgba(255, 255, 255, 0.1)',
                   },
                   transition: 'all 0.2s',
                 }}

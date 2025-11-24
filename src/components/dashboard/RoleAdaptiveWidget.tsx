@@ -30,7 +30,7 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { useAuth } from '@/context/AuthContext';
 
 const RoleAdaptiveWidget: React.FC = () => {
-  const { userRole } = useAuth();
+  const { user } = useAuth();
 
   // Helper render item đẹp hơn với Icon có nền màu
   const renderActionItem = (
@@ -85,7 +85,7 @@ const RoleAdaptiveWidget: React.FC = () => {
   );
 
   // --- 1. ADMIN VIEW ---
-  if (userRole === 'ADMIN') {
+  if (user?.role === 'ADMIN') {
     return (
       <Card
         sx={{
@@ -121,42 +121,42 @@ const RoleAdaptiveWidget: React.FC = () => {
     );
   }
 
-  // --- 2. USER VIEW ---
-  if (userRole === 'USER') {
-    return (
-      <Card
-        sx={{
-          height: '100%',
-          borderRadius: 3,
-          boxShadow: '0px 10px 40px rgba(0,0,0,0.08)',
-          border: '1px solid #f0f0f0',
-        }}
-      >
-        <CardHeader
-          title="Truy cập nhanh"
-          titleTypographyProps={{ variant: 'h6', fontWeight: 700, color: '#0060c4' }}
-          subheader="Quản lý chuyến đi của bạn"
-          action={
-            <IconButton size="small" sx={{ color: '#0060c4' }}>
-              <VerifiedUserIcon />
-            </IconButton>
-          }
-          sx={{ pb: 1, borderBottom: '1px solid #f0f0f0' }}
-        />
-        <CardContent sx={{ pt: 2 }}>
-          <List disablePadding>
-            {renderActionItem(
-              'Chuyến đi sắp tới',
-              <DirectionsCarIcon fontSize="small" />,
-              '#0060c4',
-            )}
-            {renderActionItem('Tìm kiếm vé mới', <SearchIcon fontSize="small" />, '#0288d1')}
-            {renderActionItem('Cập nhật hồ sơ', <PersonIcon fontSize="small" />, '#7b1fa2')}
-          </List>
-        </CardContent>
-      </Card>
-    );
-  }
+  // // --- 2. USER VIEW ---
+  // if (userRole === 'USER') {
+  //   return (
+  //     <Card
+  //       sx={{
+  //         height: '100%',
+  //         borderRadius: 3,
+  //         boxShadow: '0px 10px 40px rgba(0,0,0,0.08)',
+  //         border: '1px solid #f0f0f0',
+  //       }}
+  //     >
+  //       <CardHeader
+  //         title="Truy cập nhanh"
+  //         titleTypographyProps={{ variant: 'h6', fontWeight: 700, color: '#0060c4' }}
+  //         subheader="Quản lý chuyến đi của bạn"
+  //         action={
+  //           <IconButton size="small" sx={{ color: '#0060c4' }}>
+  //             <VerifiedUserIcon />
+  //           </IconButton>
+  //         }
+  //         sx={{ pb: 1, borderBottom: '1px solid #f0f0f0' }}
+  //       />
+  //       <CardContent sx={{ pt: 2 }}>
+  //         <List disablePadding>
+  //           {renderActionItem(
+  //             'Chuyến đi sắp tới',
+  //             <DirectionsCarIcon fontSize="small" />,
+  //             '#0060c4',
+  //           )}
+  //           {renderActionItem('Tìm kiếm vé mới', <SearchIcon fontSize="small" />, '#0288d1')}
+  //           {renderActionItem('Cập nhật hồ sơ', <PersonIcon fontSize="small" />, '#7b1fa2')}
+  //         </List>
+  //       </CardContent>
+  //     </Card>
+  //   );
+  // }
 
   // --- 3. GUEST VIEW (Call to Action) ---
   return (

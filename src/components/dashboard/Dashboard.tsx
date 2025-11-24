@@ -23,7 +23,7 @@ import RoleAdaptiveWidget from './RoleAdaptiveWidget';
 import { useAuth } from '@/context/AuthContext';
 
 const Dashboard: React.FC = () => {
-  const { userRole, isLoadingUser } = useAuth();
+  const { user, isLoadingUser } = useAuth();
 
   if (isLoadingUser) {
     return (
@@ -89,14 +89,14 @@ const Dashboard: React.FC = () => {
                 Tổng quan
               </Typography>
 
-              {userRole && (
+              {user?.role && (
                 <Chip
                   icon={<VerifiedUserIcon />}
-                  label={userRole}
+                  label={user.role === 'ADMIN' ? 'Quản trị viên' : 'Người dùng'}
                   sx={{
                     fontWeight: 700,
-                    bgcolor: userRole === 'ADMIN' ? '#ffebee' : '#e3f2fd',
-                    color: userRole === 'ADMIN' ? '#d32f2f' : '#0060c4',
+                    bgcolor: user.role === 'ADMIN' ? '#ffebee' : '#e3f2fd',
+                    color: user.role === 'ADMIN' ? '#d32f2f' : '#0060c4',
                     border: '1px solid',
                     borderColor: 'transparent',
                   }}

@@ -20,11 +20,11 @@ const CARD_COLORS = [
 ];
 
 const SummaryCards: React.FC = () => {
-  const { userRole } = useAuth();
+  const { user } = useAuth();
 
   // Lọc metrics theo role
   const visible = summaryMetrics.filter(
-    (m: SummaryMetric) => !m.roles || (userRole && m.roles.includes(userRole)),
+    (m: SummaryMetric) => !m.roles || (user?.role && m.roles.includes(user.role)),
   );
 
   return (

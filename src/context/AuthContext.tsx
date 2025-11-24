@@ -16,7 +16,6 @@ interface AuthContextType {
   login: (data: UserProfile) => void; // Function to handle successful login
   logout: () => void; // Function to handle logout
   hasRole: (required: string | string[]) => boolean; // added (simplified)
-  userRole: string | null; // added
 }
 
 // --- 2. Create the Context ---
@@ -133,7 +132,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
       hasRole, // expose
-      userRole: user?.role ?? null, // added
     }),
     [user, isLoggedIn, isLoadingUser, login, logout, hasRole],
   );
