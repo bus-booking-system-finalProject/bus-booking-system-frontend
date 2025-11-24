@@ -13,13 +13,7 @@ import {
   Tooltip,
   Divider,
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  DirectionsBusFilled,
-  PersonOutline,
-  Logout,
-  AccountCircle,
-} from '@mui/icons-material';
+import { Menu as MenuIcon, DirectionsBusFilled, Logout, AccountCircle } from '@mui/icons-material';
 import AuthModal from './AuthModal';
 import { useAuth } from '../context/AuthContext';
 
