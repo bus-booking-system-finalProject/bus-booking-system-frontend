@@ -1,12 +1,12 @@
-import { getAPIUrl } from "@/config/api";
-import axios from "axios";
+import { getAPIUrl } from '@/config/api';
+import axios from 'axios';
 
 // --- PUBLIC INSTANCE ---
 // For public routes (login, register)
 export const apiClient = axios.create({
-  baseURL: getAPIUrl(""), // Base URL
+  baseURL: getAPIUrl(''), // Base URL
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
   withCredentials: true,
 });
@@ -14,9 +14,9 @@ export const apiClient = axios.create({
 // --- PRIVATE INSTANCE ---
 // For secured routes (anything requiring auth)
 export const apiPrivate = axios.create({
-  baseURL: getAPIUrl(""),
+  baseURL: getAPIUrl(''),
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
   withCredentials: true,
 });

@@ -12,7 +12,6 @@ import {
   Button,
   Box,
   Avatar,
-  IconButton,
 } from '@mui/material';
 
 // Icons
@@ -20,12 +19,8 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import MapIcon from '@mui/icons-material/Map';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import SearchIcon from '@mui/icons-material/Search';
-import PersonIcon from '@mui/icons-material/Person';
 import LoginIcon from '@mui/icons-material/Login';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
 import { useAuth } from '@/context/AuthContext';
 
