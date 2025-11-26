@@ -22,9 +22,13 @@ function OAuthCallback() {
 
       // Fetch user profile using the new token to sync AuthContext
       apiClient
-        .get('/user/me')
+        .get('/user/me', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
         .then((res) => {
-          login(res.data); // Update global auth state
+          login(res.data, accessToken);
           navigate({ to: '/' }); // Redirect to home
         })
         .catch((err) => {
