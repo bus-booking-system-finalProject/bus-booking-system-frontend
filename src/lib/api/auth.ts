@@ -1,7 +1,7 @@
 import { AxiosError } from 'axios'; // Import AxiosError type
 import { type LoginType, type RegisterType } from '@/schemas/auth';
 import { apiClient, apiPrivate } from './axios';
-import { type RegisterResponse, type UserProfile } from '@/types/auth';
+import { type RegisterResponse, type UserProfile, type LoginResponse } from '@/types/auth';
 
 // Define the shape of the error response from your backend
 // Based on your code: checks for .error or .message
@@ -30,14 +30,14 @@ export const registerUser = async (data: RegisterType): Promise<RegisterResponse
 /**
  * Handles user login
  * POST /user/login
+ * Returns: { accessToken, user }
  */
-export const loginUser = async (data: LoginType): Promise<UserProfile> => {
+export const loginUser = async (data: LoginType): Promise<LoginResponse> => {
   try {
-    const response = await apiClient.post<UserProfile>('/user/login', data);
+    const response = await apiClient.post<LoginResponse>('/user/login', data);
     return response.data;
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
-
     throw new Error(error.response?.data?.error || error.message || 'Invalid email or password');
   }
 };
@@ -45,15 +45,14 @@ export const loginUser = async (data: LoginType): Promise<UserProfile> => {
 /**
  * Handles refreshing the access token
  * POST /user/refresh
+ * Cookie is sent automatically. Returns new Access Token + User info.
  */
-export const refreshToken = async (): Promise<UserProfile> => {
+export const refreshToken = async (): Promise<LoginResponse> => {
   try {
-    // No body is sent, the cookie is sent automatically
-    const response = await apiClient.post<UserProfile>('/user/refresh');
+    const response = await apiClient.post<LoginResponse>('/user/refresh');
     return response.data;
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
-
     throw new Error(error.response?.data?.message || 'Session expired. Please log in again.');
   }
 };
@@ -68,7 +67,6 @@ export const getMe = async (): Promise<UserProfile> => {
     return response.data;
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
-
     throw new Error(error.response?.data?.message || 'Could not fetch user profile');
   }
 };
@@ -83,7 +81,6 @@ export const logoutUser = async (): Promise<{ message: string }> => {
     return response.data;
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
-
     throw new Error(error.response?.data?.message || 'Logout failed');
   }
 };

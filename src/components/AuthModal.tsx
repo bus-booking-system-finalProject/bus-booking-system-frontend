@@ -44,22 +44,23 @@ function LoginForm({
 
   const mutation = useMutation({
     mutationFn: loginUser,
-    onSuccess: (data: UserProfile) => {
-      // 1. Call the global login function from AuthContext
-      auth.login(data); // Pass the UserProfile object
+    // Update the data type here
+    onSuccess: (data: { accessToken: string; user: UserProfile }) => {
+      // 1. Call global login with BOTH user and token
+      auth.login(data.user, data.accessToken);
+
       // 2. Report success
       onLoginSuccess('Login successfully!');
-      // 3. Reset the form
       form.reset();
-      // 4. Navigate to dashboard nếu là admin
-      if (data.role === 'ADMIN') {
+
+      // 3. Navigation logic
+      if (data.user.role === 'ADMIN') {
         setTimeout(() => {
           navigate({ to: '/dashboard' });
         }, 1500);
       }
     },
     onError: (error: Error) => {
-      // Set the error message from the API response
       setFeedback({ type: 'error', message: error.message });
     },
   });

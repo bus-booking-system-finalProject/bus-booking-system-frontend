@@ -7,7 +7,7 @@ export interface AuthContextType {
   isLoggedIn: boolean;
   accessToken: string | null;
   isLoadingUser: boolean;
-  login: (data: UserProfile) => void;
+  login: (user: UserProfile, accessToken: string) => void;
   logout: () => void;
   hasRole: (required: string | string[]) => boolean;
 }

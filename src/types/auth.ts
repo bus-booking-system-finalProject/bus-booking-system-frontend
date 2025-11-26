@@ -7,6 +7,12 @@ export interface UserProfile {
   createdAt: string;
 }
 
+// Response from POST /user/login
+export interface LoginResponse {
+  accessToken: string;
+  user: UserProfile;
+}
+
 // Response from POST /user/register
 export interface RegisterResponse {
   message: string;

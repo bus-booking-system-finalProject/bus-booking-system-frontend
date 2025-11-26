@@ -1,16 +1,16 @@
-import React, { useMemo, useEffect, useCallback } from 'react';
+import React, { useMemo, useEffect, useCallback, useState, useLayoutEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiPrivate } from '@/lib/api/axios';
 import { getMe, refreshToken as refreshAuthToken, logoutUser } from '@/lib/api/auth';
 import { type UserProfile } from '@/types/auth';
-
-// Import the Context from the new file
 import { AuthContext } from '../hooks/useAuth';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
-  // Use React Query to fetch the user's profile
+  // 1. State to hold the Access Token in MEMORY
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
   const {
     data: user,
     isLoading: isLoadingUser,
@@ -19,15 +19,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   } = useQuery({
     queryKey: ['currentUser'],
     queryFn: getMe,
-    enabled: false,
-    retry: 1,
+    enabled: false, // We manually trigger this
+    retry: false,
     staleTime: Infinity,
   });
 
-  // --- Check auth status on load ---
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
+  // 2. Login Function: Updates Token state + React Query Cache
+  const login = useCallback(
+    (userData: UserProfile, token: string) => {
+      setAccessToken(token);
+      queryClient.setQueryData(['currentUser'], userData);
+    },
+    [queryClient],
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -35,38 +39,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
+      setAccessToken(null); // Clear token from memory
       queryClient.setQueryData(['currentUser'], null);
       queryClient.clear();
     }
   }, [queryClient]);
 
-  const login = useCallback(
-    (data: UserProfile) => {
-      queryClient.setQueryData(['currentUser'], data);
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-    },
-    [queryClient],
-  );
-
+  // 3. Check Auth on Load (Silent Refresh)
+  // When the app loads, we have no Access Token. We try to fetch the user ('/me').
+  // It will fail (401), trigger the interceptor, refresh the token, and retry.
   useEffect(() => {
-    if (isError) {
-      queryClient.setQueryData(['currentUser'], null);
-    }
-  }, [isError, queryClient]);
+    refetch();
+  }, [refetch]);
 
-  // --- Setup Axios Interceptors ---
-  useEffect(() => {
-    const responseIntercept = apiPrivate.interceptors.response.use(
+  // 4. REQUEST INTERCEPTOR: Attach the Access Token to every request
+  useLayoutEffect(() => {
+    const authInterceptor = apiPrivate.interceptors.request.use((config) => {
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+      return config;
+    });
+
+    return () => {
+      apiPrivate.interceptors.request.eject(authInterceptor);
+    };
+  }, [accessToken]);
+
+  // 5. RESPONSE INTERCEPTOR: Handle Token Expiration (401)
+  useLayoutEffect(() => {
+    const refreshInterceptor = apiPrivate.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+
         if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
+          originalRequest._retry = true; // Prevent infinite loops
+
           try {
-            const newUser = await refreshAuthToken();
-            login(newUser);
+            // Attempt to get a new Access Token using the HttpOnly cookie
+            const { accessToken: newAccessToken, user: userData } = await refreshAuthToken();
+
+            // Save new data to state
+            login(userData, newAccessToken);
+
+            // Retry the original request with the new token
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
             return apiPrivate(originalRequest);
           } catch (refreshError) {
+            // Refresh failed (cookie expired/invalid) -> Log out
             logout();
             return Promise.reject(refreshError);
           }
@@ -76,9 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
-      apiPrivate.interceptors.response.eject(responseIntercept);
+      apiPrivate.interceptors.response.eject(refreshInterceptor);
     };
   }, [login, logout]);
+
+  // Reset user if initial query fails hard (not 401)
+  useEffect(() => {
+    if (isError) {
+      setAccessToken(null);
+      queryClient.setQueryData(['currentUser'], null);
+    }
+  }, [isError, queryClient]);
 
   const isLoggedIn = !!user;
 
@@ -94,14 +123,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const contextValue = useMemo(
     () => ({
       user: user || null,
-      accessToken: null,
+      accessToken,
       isLoggedIn,
       isLoadingUser,
       login,
       logout,
       hasRole,
     }),
-    [user, isLoggedIn, isLoadingUser, login, logout, hasRole],
+    [user, accessToken, isLoggedIn, isLoadingUser, login, logout, hasRole],
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
