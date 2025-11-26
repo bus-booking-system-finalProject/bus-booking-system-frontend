@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import AuthModal from './AuthModal';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '../context/AuthContext'; // Import AuthProvider
 
 // Mocking remains the same...
 vi.mock('@/lib/api/auth', () => ({
@@ -25,7 +26,9 @@ const queryClient = new QueryClient({
 const renderModal = (open = true) => {
   return render(
     <QueryClientProvider client={queryClient}>
-      <AuthModal open={open} onClose={vi.fn()} />
+      <AuthProvider>
+        <AuthModal open={open} onClose={vi.fn()} />
+      </AuthProvider>
     </QueryClientProvider>,
   );
 };
@@ -64,5 +67,31 @@ describe('AuthModal Integration', () => {
     // 3. Now the error message should appear
     const errorMsg = await screen.findByText(/Email is required/i);
     expect(errorMsg).toBeInTheDocument();
+  });
+
+  it('closes modal on successful login', async () => {
+    const onCloseMock = vi.fn();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AuthModal open={true} onClose={onCloseMock} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    // Fill in the login form
+    fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'test@test.com' } });
+    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'password123' } });
+
+    // Submit the form
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
+
+    // Wait for the success message and modal close
+    await waitFor(() => {
+      expect(screen.getByText(/Login successfully!/i)).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(onCloseMock).toHaveBeenCalled();
+    });
   });
 });

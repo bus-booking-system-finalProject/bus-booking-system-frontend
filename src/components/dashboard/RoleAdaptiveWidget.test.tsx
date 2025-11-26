@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import RoleAdaptiveWidget from './RoleAdaptiveWidget';
+import { AuthProvider } from '@/context/AuthContext'; // Import AuthProvider
 
 // --- 1. Mock the AuthContext ---
 // We use a mock function 'mockUser' so we can change the return value in each test
@@ -19,7 +20,11 @@ describe('RoleAdaptiveWidget Component', () => {
     // Simulate logged-in Admin
     mockUser.mockReturnValue({ role: 'ADMIN', name: 'Admin User' });
 
-    render(<RoleAdaptiveWidget />);
+    render(
+      <AuthProvider>
+        <RoleAdaptiveWidget />
+      </AuthProvider>,
+    );
 
     // Check for Admin specific header
     expect(screen.getByText('Quản trị viên')).toBeInTheDocument();
@@ -45,7 +50,11 @@ describe('RoleAdaptiveWidget Component', () => {
     // Simulate Guest (user is null or undefined)
     mockUser.mockReturnValue(null);
 
-    render(<RoleAdaptiveWidget />);
+    render(
+      <AuthProvider>
+        <RoleAdaptiveWidget />
+      </AuthProvider>,
+    );
 
     // Check for Guest greeting
     expect(screen.getByText('Xin chào quý khách')).toBeInTheDocument();
