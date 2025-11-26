@@ -34,6 +34,8 @@ jobs:
       - name: Run Tests
         # Runs Vitest (since you have it in package.json)
         run: npm run test
+        env:
+          VITE_API_URL: ${{ secrets.CI_TEST_API_URL }}
 
   # Job 2: Verify Build works
   build-check:
