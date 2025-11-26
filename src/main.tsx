@@ -1,6 +1,11 @@
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
+// 1. IMPORT MUI
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from './theme'; // File theme.ts
+
 import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx';
 import { getContext } from './integrations/tanstack-query/client.ts';
 import './styles.css';
@@ -31,16 +36,20 @@ if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
-        <AuthProvider>
-          <RouterProvider router={router} basepath="/bus-booking-system-frontend/" />
-        </AuthProvider>
-      </TanStackQueryProvider.Provider>
+      {/* add theme provider */}
+      <ThemeProvider theme={theme}>
+        {/* CssBaseline giúp reset CSS trình duyệt và áp dụng nền mặc định từ theme */}
+        <CssBaseline />
+
+        <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
+          <AuthProvider>
+            {/* RouterProvider will render the app based on the theme */}
+            <RouterProvider router={router} basepath="/bus-booking-system-frontend/" />
+          </AuthProvider>
+        </TanStackQueryProvider.Provider>
+      </ThemeProvider>
     </StrictMode>,
   );
 }
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
