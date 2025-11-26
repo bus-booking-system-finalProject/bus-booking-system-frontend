@@ -13,13 +13,7 @@ import {
   Tooltip,
   Divider,
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  DirectionsBusFilled,
-  Logout,
-  AccountCircle,
-  Dashboard as DashboardIcon, // Đổi tên import icon để tránh trùng tên component
-} from '@mui/icons-material';
+import { Menu as MenuIcon, DirectionsBusFilled, Logout, AccountCircle } from '@mui/icons-material';
 import AuthModal from './AuthModal';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -87,7 +81,6 @@ function Header() {
   const handleLogoClick = () => {
     setActivePage(''); // Reset active state về trang chủ
   };
-
   return (
     <AppBar position="sticky" sx={{ bgcolor: '#0060c4', color: 'white', boxShadow: 0 }}>
       <Container maxWidth="xl">
@@ -128,6 +121,19 @@ function Header() {
                   <Typography textAlign="center">{page}</Typography>
                 </MenuItem>
               ))}
+              {isAdmin && (
+                <MenuItem
+                  onClick={() => {
+                    handleCloseNavMenu();
+                    navigate({ to: '/dashboard' });
+                  }}
+                  sx={{
+                    '&.Mui-selected': { bgcolor: 'rgba(0, 96, 196, 0.1)' },
+                  }}
+                >
+                  <Typography textAlign="center">Dashboard</Typography>
+                </MenuItem>
+              )}
             </Menu>
           </Box>
 
@@ -194,8 +200,6 @@ function Header() {
             }}
           >
             {pages.map((page) => {
-              // Giả sử bạn map tên trang thành đường dẫn: 'Giới thiệu' -> '/gioi-thieu'
-              // Bạn có thể tùy chỉnh logic mapping này
               const pathMap: Record<string, string> = {
                 'Giới thiệu': '/gioi-thieu',
                 'Cổ đông': '/co-dong',
@@ -209,7 +213,7 @@ function Header() {
                   key={page}
                   onClick={() => {
                     handleCloseNavMenu();
-                    navigate({ to: pagePath }); // Điều hướng thật
+                    navigate({ to: pagePath });
                   }}
                   sx={{
                     my: 2,
@@ -217,7 +221,6 @@ function Header() {
                     display: 'block',
                     px: 2,
                     borderRadius: 2,
-                    // --- LOGIC ACTIVE DỰA TRÊN URL ---
                     bgcolor: active ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
                     fontWeight: active ? 700 : 500,
                     '&:hover': {
@@ -238,11 +241,10 @@ function Header() {
                 sx={{
                   my: 2,
                   color: 'white',
-                  display: 'block',
+                  display: { xs: 'none', md: 'block' },
                   ml: 1,
                   px: 2,
                   borderRadius: 2,
-                  // --- KIỂM TRA TRỰC TIẾP VỚI /dashboard ---
                   bgcolor: isActive('/dashboard') ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
                   fontWeight: isActive('/dashboard') ? 700 : 500,
                   '&:hover': {
@@ -264,14 +266,6 @@ function Header() {
           <Box sx={{ flexGrow: 0 }}>
             {isLoggedIn && user ? (
               <>
-                <Tooltip title="Dashboard">
-                  <IconButton
-                    onClick={handleNavigateDashboard}
-                    sx={{ color: 'inherit', mr: 1, display: { xs: 'flex', md: 'none' } }}
-                  >
-                    <DashboardIcon />
-                  </IconButton>
-                </Tooltip>
                 <Tooltip title="Tài khoản">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                     <Avatar alt={user.email} sx={{ bgcolor: 'primary.dark' }}>
@@ -330,10 +324,16 @@ function Header() {
                     display: { xs: 'flex', md: 'none' },
                     minWidth: 'auto',
                     p: 1,
-                    color: 'inherit',
-                    border: '1px solid rgba(255,255,255,0.5)',
+                    backgroundColor: 'white',
+                    color: '#0060c4',
+                    fontWeight: 700,
+                    border: '1px solid white',
                     borderRadius: 2,
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', border: '1px solid white' },
+                    boxShadow: 'none',
+                    '&:hover': {
+                      backgroundColor: '#f0f0f0',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    },
                   }}
                 >
                   <Typography variant="body2" fontWeight={700} sx={{ mr: 0.5 }}>
