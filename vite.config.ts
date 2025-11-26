@@ -23,4 +23,9 @@ export default defineConfig({
     host: true,
   },
   base: '/bus-booking-system-frontend/',
+  test: {
+    globals: true, // Ensures global functions like 'expect' are available
+    setupFiles: './src/test/setupTests.ts', // Path to your setup file
+    environment: 'jsdom', // Use jsdom environment for testing
+  },
 });
