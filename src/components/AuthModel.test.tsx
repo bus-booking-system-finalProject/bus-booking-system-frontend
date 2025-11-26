@@ -4,14 +4,25 @@ import '@testing-library/jest-dom';
 import AuthModal from './AuthModal';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mocking remains the same...
+// Mock the auth API
 vi.mock('@/lib/api/auth', () => ({
   loginUser: vi.fn().mockResolvedValue({ role: 'USER', email: 'test@test.com' }),
   registerUser: vi.fn().mockResolvedValue({}),
+  getMe: vi.fn().mockResolvedValue({ role: 'USER', email: 'test@test.com' }),
 }));
 
+// Mock useAuth hook
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: null,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
+// Mock AuthProvider to just pass children through
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ login: vi.fn() }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -33,7 +44,6 @@ const renderModal = (open = true) => {
 describe('AuthModal Integration', () => {
   it('renders login form by default', () => {
     renderModal();
-    // Use getAll because there might be multiple headers (DialogTitle + Form Header)
     const headings = screen.getAllByRole('heading', { name: 'Đăng nhập' });
     expect(headings[0]).toBeInTheDocument();
   });
@@ -53,16 +63,36 @@ describe('AuthModal Integration', () => {
   it('validates empty inputs', async () => {
     renderModal();
 
-    // 1. Find the input
     const emailInput = screen.getByLabelText(/Email/i);
-
-    // 2. Simulate user interaction: Click inside (Focus) then click out (Blur)
-    // This satisfies the "isTouched" requirement in your code
     fireEvent.focus(emailInput);
     fireEvent.blur(emailInput);
 
-    // 3. Now the error message should appear
     const errorMsg = await screen.findByText(/Email is required/i);
     expect(errorMsg).toBeInTheDocument();
+  });
+
+  it('closes modal on successful login', async () => {
+    const onCloseMock = vi.fn();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthModal open={true} onClose={onCloseMock} />
+      </QueryClientProvider>,
+    );
+
+    const emailInput = screen.getByLabelText(/Email/i);
+    const passwordInput = screen.getByLabelText(/Password/i);
+    const loginButton = screen.getByRole('button', { name: /Đăng nhập/i });
+
+    fireEvent.change(emailInput, { target: { value: 'test@test.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    fireEvent.click(loginButton);
+
+    // Wait for async login to complete
+    await waitFor(
+      () => {
+        expect(onCloseMock).toHaveBeenCalled();
+      },
+      { timeout: 3000 },
+    );
   });
 });
