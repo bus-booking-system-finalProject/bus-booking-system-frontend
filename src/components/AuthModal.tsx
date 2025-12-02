@@ -18,7 +18,7 @@ import { FcGoogle as GoogleIcon } from 'react-icons/fc';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from '@tanstack/react-form';
-import { LoginSchema, RegisterSchema } from '@/schemas/auth';
+import { LoginSchema, RegisterSchema } from '@/schemas/AuthSchema';
 import { useAuth } from '@/hooks/useAuth';
 import { loginUser, registerUser } from '@/lib/api/auth';
 import type { UserProfile } from '@/types/auth';
@@ -56,7 +56,7 @@ function LoginForm({
       // 3. Navigation logic
       if (data.user.role === 'ADMIN') {
         setTimeout(() => {
-          navigate({ to: '/dashboard' });
+          navigate({ to: '/admin' });
         }, 1500);
       }
     },

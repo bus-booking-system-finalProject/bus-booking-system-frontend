@@ -1,5 +1,4 @@
 import { createRoute } from '@tanstack/react-router';
-import { rootRoute } from './root.tsx';
 import SearchResultsPage from '../pages/SearchResultsPage.tsx';
 import { z } from 'zod'; // You probably have zod installed
 
@@ -18,9 +17,10 @@ const tripSearchSchema = z.object({
   busTypes: z.union([z.string(), z.array(z.string())]).optional(),
   times: z.union([z.string(), z.array(z.string())]).optional(),
 });
+import { indexRoute } from './IndexRoute.tsx';
 
 export const searchResultRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => indexRoute,
   path: '/search-results',
   // 2. Add validation for search params
   validateSearch: (search) => tripSearchSchema.parse(search),

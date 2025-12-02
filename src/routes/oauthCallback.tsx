@@ -1,9 +1,9 @@
 import { createRoute } from '@tanstack/react-router';
 import OAuthCallback from '@/pages/OAuthCallback.tsx';
-import { rootRoute } from './root.tsx';
+import { indexRoute } from './IndexRoute.tsx';
 
 export const oauthCallbackRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => indexRoute,
   path: '/oauth2/callback',
   component: OAuthCallback,
 });

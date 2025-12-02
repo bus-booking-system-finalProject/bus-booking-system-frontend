@@ -2,6 +2,7 @@ import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
+    mode: 'light',
     primary: {
       main: '#0060c4', // Brand blue color (Used for Header, Icon, Active text)
       light: '#4285f4',

@@ -19,8 +19,10 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@hookform/resolvers": "^5.2.2",
     "@mui/icons-material": "^7.3.5",
     "@mui/material": "^7.3.5",
+    "@mui/x-data-grid": "^8.20.0",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-devtools": "^0.7.0",
     "@tanstack/react-form": "^1.23.8",
@@ -29,10 +31,12 @@
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-router-devtools": "^1.132.0",
     "axios": "^1.13.2",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.545.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-hook-form": "^7.67.0",
     "react-icons": "^5.5.0",
     "tailwindcss": "^4.1.17",
     "zod": "^4.1.12"
