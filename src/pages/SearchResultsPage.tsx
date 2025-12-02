@@ -17,12 +17,12 @@ import { type Trip } from '@/types/trip';
 // Constants
 const ITEMS_PER_PAGE = 5;
 
-const INITIAL_FILTERS: FilterState = {
-  priceRange: [0, 2000000],
-  selectedTimes: [],
-  selectedOperators: [],
-  selectedTypes: [],
-};
+// const INITIAL_FILTERS: FilterState = {
+//   priceRange: [0, 2000000],
+//   selectedTimes: [],
+//   selectedOperators: [],
+//   selectedTypes: [],
+// };
 
 const SearchResultsPage: React.FC = () => {
   // 1. Read URL Params
