@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, Stack } from '@mui/material';
 
-type SortOption = 'earliest' | 'latest' | 'lowest_price' | 'highest_rating';
+export type SortOption = 'earliest' | 'latest' | 'lowest_price' | 'highest_rating';
 
 interface SortBarProps {
   currentSort: SortOption;

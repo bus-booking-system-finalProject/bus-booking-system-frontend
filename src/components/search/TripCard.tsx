@@ -47,21 +47,31 @@ const calculateDuration = (start: string, end: string) => {
   return `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`;
 };
 
+const mapBusTypeToLabel = (type?: string) => {
+  if (!type) return '';
+  const map: Record<string, string> = {
+    standard: 'Seater',
+    sleeper: 'Sleeper',
+    limousine: 'Limousine',
+  };
+  return map[type.toLowerCase()] || type;
+};
+
 interface TripCardProps {
   trip: Trip;
 }
 
 const TripCard: React.FC<TripCardProps> = ({ trip }) => {
+  // Destructure based on the Trip type from trip.ts
   const {
+    operator,
+    route,
+    schedule,
+    pricing,
+    availability,
     bus,
-    from_station,
-    to_station,
-    departure_time,
-    arrival_time,
-    base_price,
-    available_seats,
-    rating,
-    review_count,
+    rating = 4.5,
+    review_count = 100,
   } = trip;
 
   return (
@@ -97,8 +107,8 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
               {/* Bus Image */}
               <Box
                 component="img"
-                src={bus.images[0] || 'https://via.placeholder.com/150'}
-                alt={bus.operator_name}
+                src={bus.images?.[0] || 'https://via.placeholder.com/150'}
+                alt={operator.name}
                 sx={{
                   width: 120,
                   height: 120,
@@ -111,7 +121,7 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
               {/* Time & Route Diagram */}
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" fontWeight={700} color="text.primary">
-                  {bus.operator_name}
+                  {operator.name}
                 </Typography>
 
                 {/* Rating */}
@@ -141,10 +151,10 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                     />
                     <Stack direction="row" spacing={1} alignItems="flex-start">
                       <Typography variant="h6" fontWeight={700} lineHeight={1}>
-                        {formatTime(departure_time)}
+                        {formatTime(schedule.departureTime)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.2 }}>
-                        • {from_station}
+                        • {route.origin}
                       </Typography>
                     </Stack>
                   </Box>
@@ -160,7 +170,7 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                       top: '35%',
                     }}
                   >
-                    {calculateDuration(departure_time, arrival_time)}
+                    {calculateDuration(schedule.departureTime, schedule.arrivalTime)}
                   </Typography>
 
                   {/* Arrival */}
@@ -177,10 +187,10 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                     />
                     <Stack direction="row" spacing={1} alignItems="flex-start">
                       <Typography variant="h6" fontWeight={700} lineHeight={1}>
-                        {formatTime(arrival_time)}
+                        {formatTime(schedule.arrivalTime)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.2 }}>
-                        • {to_station}
+                        • {route.destination}
                       </Typography>
                     </Stack>
                   </Box>
@@ -212,8 +222,15 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                     <Typography variant="body2" fontWeight={600}>
                       {bus.model}
                     </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', mt: 0.25 }}
+                    >
+                      {mapBusTypeToLabel(bus.type)}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {bus.seat_capacity} Ghế
+                      {availability.totalSeats} Ghế
                     </Typography>
                   </Box>
                 </Stack>
@@ -255,9 +272,9 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                 <Typography
                   variant="body2"
                   fontWeight={700}
-                  color={available_seats < 5 ? 'error.main' : 'success.main'}
+                  color={availability.availableSeats < 5 ? 'error.main' : 'success.main'}
                 >
-                  {available_seats} chỗ
+                  {availability.availableSeats} chỗ
                 </Typography>
               </Stack>
             </Box>
@@ -278,10 +295,10 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                 color="text.disabled"
                 sx={{ textDecoration: 'line-through' }}
               >
-                {formatCurrency(base_price * 1.2)}
+                {formatCurrency(pricing.basePrice * 1.2)}
               </Typography>
               <Typography variant="h5" fontWeight={800} color="secondary.main">
-                {formatCurrency(base_price)}
+                {formatCurrency(pricing.basePrice)}
               </Typography>
               <Chip
                 label="Ưu đãi"

@@ -11,17 +11,17 @@ import {
   AccordionSummary,
   AccordionDetails,
   Button,
+  RadioGroup,
+  Radio,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // --- CONSTANTS ---
-export const OPERATORS = ['Phương Trang', 'Thành Bưởi', 'Xe Nhà', 'SkyBus'];
-export const BUS_TYPES = ['Ghế ngồi', 'Giường nằm', 'Limousine'];
 export const TIME_RANGES = [
-  { label: 'Sáng sớm (00:00 - 06:00)', value: '0-6' },
-  { label: 'Buổi sáng (06:00 - 12:00)', value: '6-12' },
-  { label: 'Buổi chiều (12:00 - 18:00)', value: '12-18' },
-  { label: 'Buổi tối (18:00 - 24:00)', value: '18-24' },
+  { label: 'Buổi sáng', value: 'morning' },
+  { label: 'Buổi chiều', value: 'afternoon' },
+  { label: 'Buổi tối', value: 'evening' },
+  { label: 'Đêm', value: 'night' },
 ];
 
 // --- TYPES ---
@@ -36,15 +36,35 @@ interface FilterSidebarProps {
   filters: FilterState;
   onFilterChange: (newFilters: FilterState) => void;
   onReset: () => void;
+  availableOperators: string[];
+  availableBusTypes: string[];
+  maxPrice: number;
 }
 
-const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange, onReset }) => {
+const FilterSidebar: React.FC<FilterSidebarProps> = ({
+  filters,
+  onFilterChange,
+  onReset,
+  availableOperators,
+  availableBusTypes,
+  maxPrice,
+}) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',
       maximumSignificantDigits: 3,
     }).format(value);
+  };
+
+  // Map bus type backend values to display labels
+  const getBusTypeLabel = (type: string): string => {
+    const labelMap: Record<string, string> = {
+      standard: 'Ghế ngồi',
+      limousine: 'Limousine',
+      sleeper: 'Giường nằm',
+    };
+    return labelMap[type] || type;
   };
 
   // --- HANDLERS ---
@@ -85,7 +105,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange, 
           onChange={handlePriceChange}
           valueLabelDisplay="auto"
           min={0}
-          max={1000000}
+          max={maxPrice}
           step={50000}
         />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
@@ -112,19 +132,22 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange, 
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>
           <FormGroup>
-            {TIME_RANGES.map((range) => (
-              <FormControlLabel
-                key={range.value}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={filters.selectedTimes.includes(range.value)}
-                    onChange={() => handleCheckboxChange('selectedTimes', range.value)}
-                  />
-                }
-                label={range.label}
-              />
-            ))}
+            <RadioGroup
+              value={filters.selectedTimes[0] || ''}
+              onChange={(e) => {
+                const selected = e.target.value;
+                onFilterChange({ ...filters, selectedTimes: selected ? [selected] : [] });
+              }}
+            >
+              {TIME_RANGES.map((range) => (
+                <FormControlLabel
+                  key={range.value}
+                  value={range.value}
+                  control={<Radio size="small" />}
+                  label={range.label}
+                />
+              ))}
+            </RadioGroup>
           </FormGroup>
         </AccordionDetails>
       </Accordion>
@@ -143,7 +166,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange, 
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>
           <FormGroup>
-            {OPERATORS.map((op) => (
+            {availableOperators.map((op) => (
               <FormControlLabel
                 key={op}
                 control={
@@ -174,19 +197,22 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange, 
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>
           <FormGroup>
-            {BUS_TYPES.map((type) => (
-              <FormControlLabel
-                key={type}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={filters.selectedTypes.includes(type)}
-                    onChange={() => handleCheckboxChange('selectedTypes', type)}
-                  />
-                }
-                label={type}
-              />
-            ))}
+            <RadioGroup
+              value={filters.selectedTypes[0] || ''}
+              onChange={(e) => {
+                const selected = e.target.value;
+                onFilterChange({ ...filters, selectedTypes: selected ? [selected] : [] });
+              }}
+            >
+              {availableBusTypes.map((type) => (
+                <FormControlLabel
+                  key={type}
+                  value={type}
+                  control={<Radio size="small" />}
+                  label={getBusTypeLabel(type)}
+                />
+              ))}
+            </RadioGroup>
           </FormGroup>
         </AccordionDetails>
       </Accordion>

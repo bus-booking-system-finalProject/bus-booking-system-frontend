@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import {
   Box,
   Paper,
@@ -8,6 +9,7 @@ import {
   IconButton,
   Autocomplete,
   TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   DirectionsBusFilled,
@@ -20,8 +22,10 @@ import {
   SwapHoriz,
   Close,
 } from '@mui/icons-material';
+import { de } from 'zod/v4/locales';
 
 // --- DATA ---
+// Display names (kept for UI) — these are the previous province names users expect to see
 const PROVINCES = [
   'Hồ Chí Minh',
   'Hà Nội',
@@ -59,6 +63,45 @@ const PROVINCES = [
   'Bình Phước',
 ];
 
+// Map displayed province name -> backend province identifier/value
+// Keep this mapping up-to-date if backend keys change. We default to the displayed value when no mapping exists.
+const PROVINCE_BACKEND_MAP: Record<string, string> = {
+  'Hồ Chí Minh': 'Ho Chi Minh City',
+  'Hà Nội': 'Hanoi',
+  'Đà Nẵng': 'Da Nang',
+  'Đồng Tháp': 'Dong Thap',
+  'An Giang': 'An Giang',
+  'Cần Thơ': 'Can Tho',
+  'Bà Rịa - Vũng Tàu': 'Ba Ria - Vung Tau',
+  'Bình Dương': 'Binh Duong',
+  'Đồng Nai': 'Dong Nai',
+  'Khánh Hòa': 'Khanh Hoa',
+  'Lâm Đồng': 'Lam Dong',
+  'Thừa Thiên Huế': 'Thua Thien Hue',
+  'Hải Phòng': 'Hai Phong',
+  'Quảng Ninh': 'Quang Ninh',
+  'Thanh Hóa': 'Thanh Hoa',
+  'Nghệ An': 'Nghe An',
+  'Bình Thuận': 'Binh Thuan',
+  'Kiên Giang': 'Kien Giang',
+  'Cà Mau': 'Ca Mau',
+  'Tiền Giang': 'Tien Giang',
+  'Long An': 'Long An',
+  'Bến Tre': 'Ben Tre',
+  'Vĩnh Long': 'Vinh Long',
+  'Trà Vinh': 'Tra Vinh',
+  'Hậu Giang': 'Hau Giang',
+  'Sóc Trăng': 'Soc Trang',
+  'Bạc Liêu': 'Bac Lieu',
+  'Bình Định': 'Binh Dinh',
+  'Phú Yên': 'Phu Yen',
+  'Quảng Nam': 'Quang Nam',
+  'Quảng Ngãi': 'Quang Ngai',
+  'Gia Lai': 'Gia Lai',
+  'Đắk Lắk': 'Dak Lak',
+  'Bình Phước': 'Binh Phuoc',
+};
+
 // --- HELPERS ---
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '';
@@ -72,6 +115,12 @@ const formatDate = (dateString: string | null) => {
 };
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
+
+interface LocationAutocompleteProps {
+  icon: React.ReactNode;
+  value: string | null;
+  onChange: (newValue: string | null) => void;
+}
 
 const BannerTab = ({
   label,
@@ -182,57 +231,62 @@ const BannerInput = ({
   </Box>
 );
 
-// ✅ NEW COMPONENT ADDED
-const LocationAutocomplete = ({
-  icon,
-  label,
-  value,
-  onChange,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | null;
-  onChange: (newValue: string | null) => void;
-}) => {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, py: 1 }}>
-      {/* Icon */}
-      <Box sx={{ mr: 1.5, display: 'flex', alignItems: 'center' }}>{icon}</Box>
-
-      {/* Input Field - Directly uses Autocomplete here */}
-      <Box sx={{ flex: 1 }}>
-        <Autocomplete
-          options={PROVINCES}
-          value={value}
-          onChange={(_e, newValue) => onChange(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={label}
-              variant="standard"
-              InputLabelProps={{
-                shrink: true,
-                style: { fontSize: '0.85rem', color: 'rgba(0, 0, 0, 0.6)' },
-              }}
-              InputProps={{
-                ...params.InputProps,
-                disableUnderline: true,
-                style: { fontWeight: 700, fontSize: '1rem' },
-              }}
-              placeholder="Chọn tỉnh thành..."
-            />
-          )}
-        />
-      </Box>
-    </Box>
-  );
-};
+const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value, onChange }) => (
+  <Autocomplete
+    options={PROVINCES}
+    value={value}
+    onChange={(_e, newValue) => onChange(newValue)}
+    autoHighlight
+    disablePortal
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        placeholder="Chọn tỉnh thành..."
+        variant="standard"
+        InputProps={{
+          ...params.InputProps,
+          disableUnderline: true,
+          startAdornment: (
+            <InputAdornment position="start" sx={{ mr: 1.5 }}>
+              {icon}
+            </InputAdornment>
+          ),
+        }}
+        sx={{
+          '& .MuiInputBase-root': {
+            height: '100%',
+            py: 1,
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: value ? 'text.primary' : 'text.disabled',
+          },
+          '& input': {
+            cursor: 'pointer',
+            textOverflow: 'ellipsis',
+          },
+        }}
+      />
+    )}
+    renderOption={(props, option) => {
+      const { key, ...otherProps } = props;
+      return (
+        <Box component="li" key={key} {...otherProps}>
+          <LocationOn sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+          {option}
+        </Box>
+      );
+    }}
+    sx={{ flex: 1, minWidth: 0 }}
+  />
+);
 
 // ----------------------------------------------------------------
 // ✅ THE EXTRACTED SEARCH WIDGET COMPONENT
 // ----------------------------------------------------------------
 
-export default function SearchWidget() {
+const SearchWidget: React.FC = () => {
+  const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState(0);
 
   // Location
@@ -255,6 +309,29 @@ export default function SearchWidget() {
     e.stopPropagation();
     setReturnDate('');
     if (returnInputRef.current) returnInputRef.current.value = '';
+  };
+
+  const handleSearch = () => {
+    if (!origin || !destination || !departDate) {
+      alert('Vui lòng chọn Điểm đi, Điểm đến và Ngày đi');
+      return;
+    }
+
+    // Map displayed province names to backend values when building the URL/search params
+    const backendOrigin = PROVINCE_BACKEND_MAP[origin] || origin;
+    const backendDestination = PROVINCE_BACKEND_MAP[destination] || destination;
+
+    navigate({
+      to: '/search-results',
+      search: {
+        origin: backendOrigin,
+        destination: backendDestination,
+        date: departDate,
+        returnDate: returnDate || undefined,
+        page: 1,
+        limit: 5,
+      },
+    });
   };
 
   return (
@@ -325,7 +402,7 @@ export default function SearchWidget() {
               alignItems: 'center',
             }}
           >
-            {/* Locations */}
+            {/* 1. LOCATION SECTION */}
             <Box>
               <Paper
                 variant="outlined"
@@ -335,27 +412,46 @@ export default function SearchWidget() {
                   borderColor: '#e0e0e0',
                   alignItems: 'center',
                   px: 2,
+                  py: 0.5,
                 }}
               >
-                <LocationAutocomplete
-                  icon={<RadioButtonChecked color="primary" />}
-                  label="Nơi xuất phát"
-                  value={origin}
-                  onChange={setOrigin}
-                />
+                {/* Origin */}
+                <Box sx={{ flex: 1 }}>
+                  {/* NEW LABEL HERE */}
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ ml: 4.5, display: 'block', mb: -1, mt: 0.5 }}
+                  >
+                    Nơi xuất phát
+                  </Typography>
+                  <LocationAutocomplete
+                    icon={<RadioButtonChecked color="primary" />}
+                    value={origin}
+                    onChange={setOrigin}
+                  />
+                </Box>
 
                 <IconButton
                   size="small"
-                  sx={{ bgcolor: '#f5f5f5', border: '1px solid #eee' }}
+                  sx={{ bgcolor: '#f5f5f5', border: '1px solid #eee', mx: 1 }}
                   onClick={handleSwapLocation}
                 >
                   <SwapHoriz fontSize="small" color="action" />
                 </IconButton>
 
-                <Box sx={{ ml: 2, flex: 1 }}>
+                {/* Destination */}
+                <Box sx={{ flex: 1 }}>
+                  {/* NEW LABEL HERE */}
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ ml: 4.5, display: 'block', mb: -1, mt: 0.5 }}
+                  >
+                    Nơi đến
+                  </Typography>
                   <LocationAutocomplete
                     icon={<LocationOn color="error" />}
-                    label="Nơi đến"
                     value={destination}
                     onChange={setDestination}
                   />
@@ -459,6 +555,7 @@ export default function SearchWidget() {
                   boxShadow: 'none',
                   '&:hover': { bgcolor: '#ffca2c', boxShadow: 'none' },
                 }}
+                onClick={handleSearch}
               >
                 Tìm kiếm
               </Button>
@@ -468,4 +565,6 @@ export default function SearchWidget() {
       </Paper>
     </>
   );
-}
+};
+
+export default SearchWidget;

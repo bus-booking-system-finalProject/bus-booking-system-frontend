@@ -1,38 +1,55 @@
-// src/types/trip.ts
-
 export type TripStatus = 'SCHEDULED' | 'CANCELLED' | 'COMPLETED' | 'DELAYED';
 
-export type BusType = 'Limousine' | 'Giường nằm' | 'Ghế ngồi';
+export type BusType = 'Limousine' | 'Sleeper' | 'Seater';
 
-export interface Bus {
-  id: string;
-  operator_id: string;
-  operator_name: string; // In real DB this comes from operator table, we mock it here
-  plate_number: string;
-  model: string;
-  seat_capacity: number;
-  type: BusType; // Derived from model typically
-  images: string[]; // For UI display
+// Matches: "route": { "origin": "...", "destination": "...", "durationMinutes": 1800 }
+export interface RouteInfo {
+  origin: string;
+  destination: string;
+  durationMinutes: number;
 }
 
+// Matches: "operator": { "name": "Futa Bus Lines" }
+export interface OperatorInfo {
+  name: string;
+}
+
+// Matches: "bus": { "model": "...", "type": "..." }
+export interface BusInfo {
+  model: string;
+  type: BusType;
+  images?: string[]; // Optional in case backend adds it later
+}
+
+// Matches: "schedule": { "departureTime": "...", "arrivalTime": "..." }
+export interface ScheduleInfo {
+  departureTime: string;
+  arrivalTime: string;
+}
+
+// Matches: "pricing": { "basePrice": 350000.00, "currency": "VND" }
+export interface PricingInfo {
+  basePrice: number;
+  currency: string;
+}
+
+// Matches: "availability": { "totalSeats": 36, "availableSeats": 30 }
+export interface AvailabilityInfo {
+  totalSeats: number;
+  availableSeats: number;
+}
+
+// --- MAIN TRIP INTERFACE ---
 export interface Trip {
-  id: string;
-  route_id: string;
-  // In a real app, these come from the Route table. We mock them for the card UI.
-  from_station: string;
-  to_station: string;
-
-  // The Join Relationship
-  bus: Bus;
-
-  // Time & Price
-  departure_time: string; // ISO 8601 String
-  arrival_time: string; // ISO 8601 String
-  base_price: number;
-
-  // Status & Logic
+  tripId: string;
+  route: RouteInfo;
+  operator: OperatorInfo;
+  bus: BusInfo;
+  schedule: ScheduleInfo;
+  pricing: PricingInfo;
+  availability: AvailabilityInfo;
   status: TripStatus;
-  available_seats: number; // Calculated field (capacity - booked)
-  rating: number; // Mocked rating (0-5)
-  review_count: number;
+  // These might be missing from backend, so make them optional or default them in UI
+  rating?: number;
+  review_count?: number;
 }
