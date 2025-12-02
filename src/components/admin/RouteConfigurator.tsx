@@ -19,7 +19,7 @@ import {
   ArrowDownward,
 } from '@mui/icons-material';
 import { Loader2 } from 'lucide-react';
-import type { RouteStop } from '@/types/admin';
+import type { RouteStop } from '@/types/AdminTypes';
 import { useSaveRouteMutation } from '@/hooks/useAdminQueries';
 
 export const RouteConfigurator: React.FC = () => {

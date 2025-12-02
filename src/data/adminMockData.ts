@@ -1,5 +1,5 @@
 // src/data/adminMockData.ts
-import type { AdminRoute, AdminBus } from '@/types/admin';
+import type { AdminRoute, AdminBus } from '@/types/AdminTypes';
 
 export const MOCK_ADMIN_ROUTES: AdminRoute[] = [
   { id: 1, name: 'NYC to Boston Express', origin: 'New York, NY', destination: 'Boston, MA' },

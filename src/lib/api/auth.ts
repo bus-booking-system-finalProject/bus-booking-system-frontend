@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios'; // Import AxiosError type
-import { type LoginType, type RegisterType } from '@/schemas/auth';
+import { type LoginType, type RegisterType } from '@/schemas/AuthSchema';
 import { apiClient, apiPrivate } from './axios';
 import { type RegisterResponse, type UserProfile, type LoginResponse } from '@/types/auth';
 

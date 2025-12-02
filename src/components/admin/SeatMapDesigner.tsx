@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { CheckCircle as CheckCircleIcon } from '@mui/icons-material';
 import { Armchair, Loader2 } from 'lucide-react';
-import type { SeatType } from '@/types/admin';
+import type { SeatType } from '@/types/AdminTypes';
 import { useSaveSeatMapMutation } from '@/hooks/useAdminQueries';
 
 export const SeatMapDesigner: React.FC = () => {

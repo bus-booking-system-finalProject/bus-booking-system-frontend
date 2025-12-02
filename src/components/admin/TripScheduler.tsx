@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import { MapPin, Bus as BusIcon, User, Loader2 } from 'lucide-react';
-import type { ScheduleFormData } from '@/types/admin';
+import type { ScheduleFormData } from '@/types/AdminTypes';
 import { useAdminRoutes, useAdminBuses, useCreateTripMutation } from '@/hooks/useAdminQueries';
 
 export const TripScheduler: React.FC = () => {

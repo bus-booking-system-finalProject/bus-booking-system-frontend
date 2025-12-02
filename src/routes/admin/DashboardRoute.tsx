@@ -5,5 +5,5 @@ import { adminRoute } from './AdminRoute';
 export const dashboardRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/',
-  component: () => <DashboardPage />,
+  component: DashboardPage,
 });

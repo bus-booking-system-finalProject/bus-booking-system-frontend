@@ -13,6 +13,7 @@ import {
   Tooltip,
   Divider,
 } from '@mui/material';
+import { LucideLayoutDashboard as DashboardIcon } from 'lucide-react';
 import { Menu as MenuIcon, DirectionsBusFilled, Logout, AccountCircle } from '@mui/icons-material';
 import AuthModal from './AuthModal';
 import { useNavigate, useLocation } from '@tanstack/react-router';
@@ -238,21 +239,24 @@ function Header() {
             {isAdmin && (
               <Button
                 onClick={handleNavigateDashboard}
+                startIcon={<DashboardIcon />}
                 sx={{
                   my: 2,
-                  color: 'white',
-                  display: { xs: 'none', md: 'block' },
-                  ml: 1,
-                  px: 2,
+                  ml: 2,
+                  display: { xs: 'none', md: 'flex' },
+                  bgcolor: 'white',
+                  color: '#0060c4', // Primary brand color
+                  fontWeight: 800,
+                  px: 2.5,
                   borderRadius: 2,
-                  bgcolor: isActive('/dashboard') ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
-                  fontWeight: isActive('/dashboard') ? 700 : 500,
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.15)', // Drop shadow for depth
+                  textTransform: 'none',
                   '&:hover': {
-                    bgcolor: isActive('/dashboard')
-                      ? 'rgba(0, 0, 0, 0.3)'
-                      : 'rgba(255, 255, 255, 0.1)',
+                    bgcolor: '#f5f5f5',
+                    transform: 'translateY(-1px)', // Subtle lift effect
+                    boxShadow: '0 6px 12px rgba(0,0,0,0.2)',
                   },
-                  transition: 'all 0.2s',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
               >
                 Dashboard

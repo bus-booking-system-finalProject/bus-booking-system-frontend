@@ -1,4 +1,4 @@
-import { LayoutDashboard, Bus, Building2, Users } from 'lucide-react';
+import { LayoutDashboard, Bus, Building2, Map, Armchair, CalendarClock } from 'lucide-react';
 
 export interface AdminTabItem {
   label: string;
@@ -13,18 +13,28 @@ export const ADMIN_TABS: AdminTabItem[] = [
     path: '/admin',
   },
   {
-    label: 'Trips',
-    icon: Bus,
-    path: '/admin/trips',
-  },
-  {
     label: 'Operators',
     icon: Building2,
     path: '/admin/operators',
   },
   {
-    label: 'Users',
-    icon: Users,
-    path: '/admin/users',
+    label: 'Buses',
+    icon: Bus,
+    path: '/admin/buses',
   },
+  {
+    label: 'Routes',
+    icon: Map,
+    path: '/admin/routes',
+  },
+  {
+    label: 'Seat Config',
+    icon: Armchair,
+    path: '/admin/seat-types',
+  },
+  {
+    label: 'Trip Scheduling',
+    icon: CalendarClock,
+    path: '/admin/trips',
+  }
 ];
