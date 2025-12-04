@@ -9,16 +9,8 @@ import { tripRoute } from './routes/admin/TripRoute.tsx';
 import { routeRoute } from './routes/admin/RouteRoute.tsx';
 import { operatorRoute } from './routes/admin/OperatorRoute.tsx';
 import { busRoute } from './routes/admin/BusRoute.tsx';
-import { seatTypeRoute } from './routes/admin/SeatTypeRoute.tsx';
 
-adminRoute.addChildren([
-  dashboardRoute,
-  tripRoute,
-  routeRoute,
-  operatorRoute,
-  busRoute,
-  seatTypeRoute,
-]);
+adminRoute.addChildren([dashboardRoute, tripRoute, routeRoute, operatorRoute, busRoute]);
 
 indexRoute.addChildren([HomeRoute, oauthCallbackRoute, searchResultRoute]);
 

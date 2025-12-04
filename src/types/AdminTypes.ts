@@ -1,6 +1,5 @@
 export type BusType = 'SLEEPER' | 'LIMOUSINE' | 'SEATER' | 'VIP';
 export type TripStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'DELAYED';
-export type SeatTypeCategory = 'STANDARD' | 'VIP' | 'DRIVER' | 'DOOR';
 
 // --- SHARED / GENERIC ---
 export interface PaginationParams {
@@ -54,7 +53,7 @@ export interface Trip {
   routeId: string;
   busId: string;
   departureTime: string; // ISO String
-  arrivalTime: string;   // ISO String
+  arrivalTime: string; // ISO String
   basePrice: number;
   status: TripStatus;
   // Expanded fields from backend
@@ -68,17 +67,8 @@ export interface SeatDefinition {
   row: number;
   col: number;
   deck: number; // 1 or 2
-  type: SeatTypeCategory;
   isAvailable?: boolean; // Used in SeatMapResponse
-  price?: number;        // Used in SeatMapResponse
-}
-
-// --- SEAT TYPE (New) ---
-export interface SeatType {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
+  price?: number; // Used in SeatMapResponse
 }
 
 // --- RESPONSE DTOs (New) ---
