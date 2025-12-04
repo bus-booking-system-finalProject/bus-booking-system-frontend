@@ -17,6 +17,7 @@ const tripSearchSchema = z.object({
   busTypes: z.union([z.string(), z.array(z.string())]).optional(),
   times: z.union([z.string(), z.array(z.string())]).optional(),
 });
+import Header from '@/components/Header.tsx';
 import { rootRoute } from './RootRoute.tsx';
 
 export const searchResultRoute = createRoute({
@@ -24,5 +25,10 @@ export const searchResultRoute = createRoute({
   path: '/search-results',
   // 2. Add validation for search params
   validateSearch: (search) => tripSearchSchema.parse(search),
-  component: () => <SearchResultsPage />,
+  component: () => (
+    <>
+      <Header />
+      <SearchResultsPage />
+    </>
+  ),
 });

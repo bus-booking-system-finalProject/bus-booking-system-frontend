@@ -12,6 +12,6 @@ import { busRoute } from './routes/admin/BusRoute.tsx';
 
 adminRoute.addChildren([dashboardRoute, tripRoute, routeRoute, operatorRoute, busRoute]);
 
-indexRoute.addChildren([HomeRoute, oauthCallbackRoute]);
+indexRoute.addChildren([HomeRoute, oauthCallbackRoute, searchResultRoute]);
 
-export const routeTree = rootRoute.addChildren([indexRoute, adminRoute, searchResultRoute]);
+export const routeTree = rootRoute.addChildren([indexRoute, adminRoute]);
