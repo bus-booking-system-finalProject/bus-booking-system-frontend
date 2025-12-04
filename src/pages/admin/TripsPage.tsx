@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -18,21 +19,21 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Card,
 } from '@mui/material';
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
-import { Add, Edit, Delete, CalendarMonth } from '@mui/icons-material';
+import { Add, Edit, Delete, CalendarMonth, DirectionsBus } from '@mui/icons-material';
 import { useForm, Controller, type SubmitHandler, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { parseISO, addMinutes, format } from 'date-fns';
-import { AxiosError } from 'axios';
 
+// Hooks
 import { useSearchTrips, useMutateTrip } from '@/hooks/admin/useTrips';
 import { useRoutes } from '@/hooks/admin/useRoutes';
 import { useBuses } from '@/hooks/admin/useBuses';
 
 // Types
-import type { Trip } from '@/types/AdminTypes';
-
+import type { TripResponse, TripPayload, TripStatus } from '@/types/AdminTypes';
 import { TripSchema, type TripFormValues } from '@/schemas/TripsSchema';
 
 export default function TripsPage() {
@@ -42,7 +43,9 @@ export default function TripsPage() {
 
   // --- QUERIES ---
   const { data: tripResponse, isLoading: tripsLoading } = useSearchTrips({ page: 1, limit: 100 });
-  const trips = tripResponse?.data || [];
+
+  // FIX: Cast to TripResponse[] because the Hook likely defaults to generic Trip[]
+  const trips = (tripResponse?.data || []) as unknown as TripResponse[];
 
   const { data: routes = [] } = useRoutes();
   const { data: buses = [] } = useBuses();
@@ -55,7 +58,7 @@ export default function TripsPage() {
     defaultValues: { status: 'SCHEDULED', basePrice: 0 },
   });
 
-  // --- Auto-Calculate Arrival Time Logic (using useWatch) ---
+  // --- Auto-Calculate Arrival Time ---
   const selectedRouteId = useWatch({ control, name: 'routeId' });
   const departureTime = useWatch({ control, name: 'departureTime' });
 
@@ -70,38 +73,53 @@ export default function TripsPage() {
             setValue('arrivalTime', format(end, "yyyy-MM-dd'T'HH:mm"));
           }
         } catch (e) {
-          console.error("Invalid date calculation", e);
+          console.error('Invalid date calculation', e);
         }
       }
     }
   }, [selectedRouteId, departureTime, routes, setValue]);
 
-  // --- Handlers ---
-  const handleOpen = (trip?: Trip) => {
-    setServerError(null);
-    if (trip) {
-      setEditingId(trip.id);
-      reset({
-        routeId: trip.routeId,
-        busId: trip.busId,
-        departureTime: trip.departureTime,
-        arrivalTime: trip.arrivalTime,
-        basePrice: trip.basePrice,
-        status: trip.status,
-      });
-    } else {
-      setEditingId(null);
-      reset({
-        status: 'SCHEDULED',
-        basePrice: 0,
-        routeId: '',
-        busId: '',
-        departureTime: '',
-        arrivalTime: '',
-      });
-    }
-    setOpen(true);
-  };
+  // --- Handlers (Wrapped in useCallback to fix ESLint/Memo errors) ---
+
+  const handleOpen = useCallback(
+    (trip?: TripResponse) => {
+      setServerError(null);
+      if (trip) {
+        setEditingId(trip.tripId);
+
+        // Reverse lookup: DTO -> ID
+        const matchedRoute = routes.find(
+          (r) => r.origin === trip.route.origin && r.destination === trip.route.destination,
+        );
+        const matchedBus = buses.find((b) => b.model === trip.bus.model);
+
+        reset({
+          routeId: matchedRoute?.id || '',
+          busId: matchedBus?.id || '',
+          departureTime: trip.schedule.departureTime
+            ? format(parseISO(trip.schedule.departureTime), "yyyy-MM-dd'T'HH:mm")
+            : '',
+          arrivalTime: trip.schedule.arrivalTime
+            ? format(parseISO(trip.schedule.arrivalTime), "yyyy-MM-dd'T'HH:mm")
+            : '',
+          basePrice: trip.pricing.basePrice,
+          status: trip.status,
+        });
+      } else {
+        setEditingId(null);
+        reset({
+          status: 'SCHEDULED',
+          basePrice: 0,
+          routeId: '',
+          busId: '',
+          departureTime: '',
+          arrivalTime: '',
+        });
+      }
+      setOpen(true);
+    },
+    [routes, buses, reset],
+  );
 
   const handleClose = () => {
     setOpen(false);
@@ -109,178 +127,216 @@ export default function TripsPage() {
     reset();
   };
 
-  const handleMutationError = (error: Error | AxiosError) => {
-    if (error instanceof AxiosError && error.response?.status === 409) {
-      setServerError('Bus conflict: This bus is already scheduled during this timeframe.');
-    } else {
-      setServerError(error.message || 'An error occurred while saving the trip.');
-    }
-  };
+  const handleDelete = useCallback(
+    (id: string) => {
+      if (confirm('Are you sure you want to delete this trip?')) {
+        remove.mutate(id);
+      }
+    },
+    [remove],
+  );
 
   const onSubmit: SubmitHandler<TripFormValues> = (data) => {
+    // FIX: Strict typing for the payload
+    const payload: TripPayload = {
+      ...data,
+      departureTime: new Date(data.departureTime).toISOString(),
+      arrivalTime: new Date(data.arrivalTime).toISOString(),
+      status: data.status as TripStatus,
+    };
+
     if (editingId) {
+      // Cast payload as 'any' if your useMutateTrip is strictly typed to the Entity,
+      // or ensure useMutateTrip accepts TripPayload.
       update.mutate(
-        { id: editingId, data }, 
-        {
-          onSuccess: () => handleClose(),
-          onError: (error) => handleMutationError(error),
-        }
+        { id: editingId, data: payload as any },
+        { onSuccess: handleClose, onError: (e) => setServerError(e.message) },
       );
     } else {
-      create.mutate(
-        data, 
-        {
-          onSuccess: () => handleClose(),
-          onError: (error) => handleMutationError(error),
-        }
-      );
-    }
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this trip?')) {
-      remove.mutate(id);
+      create.mutate(payload as any, {
+        onSuccess: handleClose,
+        onError: (e) => setServerError(e.message),
+      });
     }
   };
 
   // --- Columns ---
-  const columns: GridColDef[] = [
-    {
-      field: 'routeId',
-      headerName: 'Route',
-      width: 250,
-      valueGetter: (_, row) => {
-        const r = routes.find((x) => x.id === row.routeId);
-        return r ? `${r.origin} → ${r.destination}` : row.routeId;
+  const columns = useMemo<GridColDef<TripResponse>[]>(
+    () => [
+      {
+        field: 'route',
+        headerName: 'Route',
+        width: 250,
+        renderCell: (params) => (
+          <Stack>
+            <Typography variant="body2" fontWeight="bold">
+              {params.row.route.origin} → {params.row.route.destination}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {params.row.route.durationMinutes} mins
+            </Typography>
+          </Stack>
+        ),
       },
-    },
-    {
-      field: 'busId',
-      headerName: 'Bus',
-      width: 200,
-      valueGetter: (_, row) => {
-        const b = buses.find((x) => x.id === row.busId);
-        return b ? `${b.plateNumber} (${b.model})` : row.busId;
+      {
+        field: 'bus',
+        headerName: 'Bus',
+        width: 200,
+        renderCell: (params) => (
+          <Stack direction="row" alignItems="center" gap={1}>
+            <DirectionsBus fontSize="small" color="action" />
+            <Box>
+              <Typography variant="body2">{params.row.bus.model}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {params.row.bus.type}
+              </Typography>
+            </Box>
+          </Stack>
+        ),
       },
-    },
-    {
-      field: 'departureTime',
-      headerName: 'Departure',
-      width: 180,
-      valueFormatter: (params) => {
-        if (!params.value) return '';
-        return new Date(params.value as string).toLocaleString('vi-VN');
+      {
+        field: 'schedule',
+        headerName: 'Schedule',
+        width: 220,
+        renderCell: (params) => (
+          <Stack spacing={0.5} py={1}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography variant="body2" fontWeight={500}>
+                Dep: {format(parseISO(params.row.schedule.departureTime), 'dd/MM HH:mm')}
+              </Typography>
+            </Box>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography variant="caption" color="text.secondary">
+                Arr: {format(parseISO(params.row.schedule.arrivalTime), 'dd/MM HH:mm')}
+              </Typography>
+            </Box>
+          </Stack>
+        ),
       },
-    },
-    { 
-      field: 'basePrice', 
-      headerName: 'Price', 
-      type: 'number', 
-      width: 120,
-      valueFormatter: (params) => 
-        new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(params.value)
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 130,
-      renderCell: (params) => {
-        const colors: Record<string, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
-          SCHEDULED: 'info',
-          COMPLETED: 'success',
-          CANCELLED: 'error',
-          DELAYED: 'warning',
-        };
-        return (
-          <Chip
-            label={params.value}
-            color={colors[params.value as string] || 'default'}
-            size="small"
-            variant="outlined"
-          />
-        );
+      {
+        field: 'price',
+        headerName: 'Price',
+        width: 140,
+        // FIX: Handle safe valueGetter
+        valueGetter: (_, row) => row.pricing?.basePrice ?? 0,
+        valueFormatter: (value: number) =>
+          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value),
       },
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 100,
-      renderCell: (params) => (
-        <Stack direction="row">
-          <IconButton size="small" onClick={() => handleOpen(params.row)}>
-            <Edit fontSize="small" />
-          </IconButton>
-          <IconButton size="small" color="error" onClick={() => handleDelete(params.row.id)}>
-            <Delete fontSize="small" />
-          </IconButton>
-        </Stack>
-      ),
-    },
-  ];
+      {
+        field: 'status',
+        headerName: 'Status',
+        width: 130,
+        renderCell: (params) => {
+          const colors: Record<string, 'default' | 'success' | 'error' | 'info' | 'warning'> = {
+            SCHEDULED: 'info',
+            COMPLETED: 'success',
+            CANCELLED: 'error',
+            DELAYED: 'warning',
+          };
+          return (
+            <Chip
+              label={params.row.status}
+              color={colors[params.row.status] || 'default'}
+              size="small"
+              variant="outlined"
+            />
+          );
+        },
+      },
+      {
+        field: 'actions',
+        headerName: 'Actions',
+        width: 120,
+        renderCell: (params) => (
+          <Stack direction="row">
+            <IconButton size="small" onClick={() => handleOpen(params.row)}>
+              <Edit fontSize="small" />
+            </IconButton>
+            <IconButton size="small" color="error" onClick={() => handleDelete(params.row.tripId)}>
+              <Delete fontSize="small" />
+            </IconButton>
+          </Stack>
+        ),
+      },
+    ],
+    [handleOpen, handleDelete],
+  ); // FIX: Dependencies now stable via useCallback
 
   if (tripsLoading) return <CircularProgress sx={{ m: 4 }} />;
 
   return (
-    <Box sx={{ height: '100%', width: '100%', p: 2 }}>
+    <Box sx={{ height: '100%', width: '100%', p: 3, bgcolor: '#f8f9fa' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CalendarMonth /> Trip Management
-        </Typography>
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
+        <Box>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}
+          >
+            <CalendarMonth color="primary" /> Trip Management
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Manage schedules, pricing, and availability
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()} size="large">
           Schedule Trip
         </Button>
       </Stack>
 
-      <DataGrid
-        rows={trips}
-        columns={columns}
-        autoHeight
-        initialState={{ 
-          pagination: { paginationModel: { pageSize: 10 } },
-          sorting: { sortModel: [{ field: 'departureTime', sort: 'desc' }] } 
-        }}
-        pageSizeOptions={[10, 25, 50]}
-        sx={{ bgcolor: 'white' }}
-      />
+      <Card sx={{ height: 600, width: '100%', boxShadow: 2 }}>
+        <DataGrid
+          rows={trips}
+          columns={columns}
+          getRowId={(row) => row.tripId}
+          rowHeight={70}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          pageSizeOptions={[10, 25, 50]}
+          disableRowSelectionOnClick
+        />
+      </Card>
 
       {/* Create/Edit Dialog */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingId ? 'Edit Trip' : 'Schedule New Trip'}</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>
+          {editingId ? 'Edit Trip Details' : 'Schedule New Trip'}
+        </DialogTitle>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent dividers>
             <Stack spacing={3}>
               {serverError && <Alert severity="error">{serverError}</Alert>}
 
+              {/* ROUTE SELECTION */}
               <Controller
                 name="routeId"
                 control={control}
                 render={({ field }) => (
                   <Autocomplete
                     options={routes}
-                    getOptionLabel={(opt) =>
-                      `${opt.origin} - ${opt.destination} (${opt.estimatedMinutes}m)`
-                    }
+                    getOptionLabel={(opt) => `${opt.origin} → ${opt.destination}`}
                     value={routes.find((r) => r.id === field.value) || null}
                     onChange={(_, val) => field.onChange(val?.id)}
                     renderInput={(params) => (
-                      <TextField 
-                        {...params} 
-                        label="Select Route" 
-                        required 
-                        error={!!field.value} 
+                      <TextField
+                        {...params}
+                        label="Select Route"
+                        required
+                        error={!!field.value && !field.value}
                       />
                     )}
                   />
                 )}
               />
 
+              {/* BUS SELECTION */}
               <Controller
                 name="busId"
                 control={control}
                 render={({ field }) => (
                   <Autocomplete
                     options={buses}
-                    getOptionLabel={(opt) => `${opt.plateNumber} - ${opt.model}`}
+                    getOptionLabel={(opt) => `${opt.plateNumber} (${opt.model})`}
                     value={buses.find((b) => b.id === field.value) || null}
                     onChange={(_, val) => field.onChange(val?.id)}
                     renderInput={(params) => <TextField {...params} label="Select Bus" required />}
@@ -288,6 +344,7 @@ export default function TripsPage() {
                 )}
               />
 
+              {/* TIME SELECTION */}
               <Stack direction="row" spacing={2}>
                 <Controller
                   name="departureTime"
@@ -320,6 +377,7 @@ export default function TripsPage() {
                 />
               </Stack>
 
+              {/* PRICE AND STATUS */}
               <Stack direction="row" spacing={2}>
                 <Controller
                   name="basePrice"
@@ -354,14 +412,16 @@ export default function TripsPage() {
               </Stack>
             </Stack>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleClose} color="inherit">
+              Cancel
+            </Button>
             <Button
               type="submit"
               variant="contained"
               disabled={create.isPending || update.isPending}
             >
-              {editingId ? 'Update' : 'Schedule'}
+              {editingId ? 'Save Changes' : 'Publish Trip'}
             </Button>
           </DialogActions>
         </form>

@@ -89,22 +89,63 @@ export interface SeatMapResponse {
 }
 
 export interface SeatDto {
-    seatId: string;
-    seatCode: string;
-    status: string;
-    type: string;
-    deck: number;
-    row: number;
-    col: number;
+  seatId: string;
+  seatCode: string;
+  status: string;
+  type: string;
+  deck: number;
+  row: number;
+  col: number;
 }
 
-export interface TripSearchRequest extends PaginationParams {
+// Matches TripSearchRequest.java
+export interface TripSearchRequest {
+  page?: number;
+  limit?: number;
   origin?: string;
   destination?: string;
-  departureDate?: string; // YYYY-MM-DD
+  date?: string; // YYYY-MM-DD
   minPrice?: number;
   maxPrice?: number;
-  operatorIds?: string[];
-  busTypes?: string[];
-  sortBy?: 'price_asc' | 'price_desc' | 'time_earliest' | 'time_latest';
+  sort?: string;
+}
+
+// Matches TripSearchResponse.java
+export interface TripResponse {
+  tripId: string; // Backend DTO uses 'tripId'
+  route: {
+    origin: string;
+    destination: string;
+    durationMinutes: number;
+  };
+  operator: {
+    name: string;
+  };
+  bus: {
+    model: string;
+    type: string;
+  };
+  schedule: {
+    departureTime: string;
+    arrivalTime: string;
+  };
+  pricing: {
+    basePrice: number;
+    currency: string;
+  };
+  availability: {
+    totalSeats: number;
+    availableSeats: number;
+  };
+  status: TripStatus;
+}
+
+// Matches TripRequest.java (Payload for Create/Update)
+export interface TripPayload {
+  routeId: string;
+  busId: string;
+  departureTime: string;
+  arrivalTime: string;
+  basePrice: number;
+  status: TripStatus;
 }
