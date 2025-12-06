@@ -9,9 +9,9 @@ import { tripRoute } from './routes/admin/TripRoute.tsx';
 import { routeRoute } from './routes/admin/RouteRoute.tsx';
 import { operatorRoute } from './routes/admin/OperatorRoute.tsx';
 import { busRoute } from './routes/admin/BusRoute.tsx';
+import { tripDetailRoute } from './routes/tripDetailRoute.tsx';
 
-adminRoute.addChildren([dashboardRoute, tripRoute, routeRoute, operatorRoute, busRoute]);
-
-indexRoute.addChildren([HomeRoute, oauthCallbackRoute, searchResultRoute]);
-
-export const routeTree = rootRoute.addChildren([indexRoute, adminRoute]);
+export const routeTree = rootRoute.addChildren([
+  indexRoute.addChildren([HomeRoute, oauthCallbackRoute, searchResultRoute, tripDetailRoute]),
+  adminRoute.addChildren([dashboardRoute, tripRoute, routeRoute, operatorRoute, busRoute]),
+]);

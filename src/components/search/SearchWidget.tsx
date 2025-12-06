@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
   Box,
@@ -100,6 +100,11 @@ const PROVINCE_BACKEND_MAP: Record<string, string> = {
   'Đắk Lắk': 'Dak Lak',
   'Bình Phước': 'Binh Phuoc',
 };
+
+// Reverse map: backend identifier -> displayed name
+const BACKEND_TO_DISPLAY: Record<string, string> = Object.fromEntries(
+  Object.entries(PROVINCE_BACKEND_MAP).map(([display, backend]) => [backend, display]),
+);
 
 // --- HELPERS ---
 const formatDate = (dateString: string | null) => {
@@ -298,6 +303,23 @@ const SearchWidget: React.FC = () => {
 
   const departInputRef = useRef<HTMLInputElement>(null);
   const returnInputRef = useRef<HTMLInputElement>(null);
+
+  // Prefill from URL params when present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const o = params.get('origin');
+    const d = params.get('destination');
+    const date = params.get('date');
+    const rdate = params.get('returnDate');
+
+    // Use a microtask to avoid synchronous cascading renders
+    Promise.resolve().then(() => {
+      if (o) setOrigin(BACKEND_TO_DISPLAY[o] || decodeURIComponent(o));
+      if (d) setDestination(BACKEND_TO_DISPLAY[d] || decodeURIComponent(d));
+      if (date) setDepartDate(date);
+      if (rdate) setReturnDate(rdate);
+    });
+  }, []);
 
   const handleSwapLocation = () => {
     setOrigin(destination);

@@ -21,6 +21,7 @@ import {
   VerifiedUser,
 } from '@mui/icons-material';
 import { type Trip } from '@/types/trip';
+import { useNavigate } from '@tanstack/react-router';
 
 // --- HELPER FUNCTIONS ---
 const formatCurrency = (amount: number) => {
@@ -62,6 +63,15 @@ interface TripCardProps {
 }
 
 const TripCard: React.FC<TripCardProps> = ({ trip }) => {
+  const navigate = useNavigate();
+  // click handler
+  const handleSelectTrip = () => {
+    navigate({
+      to: '/trip/$tripId',
+      params: { tripId: trip.tripId },
+    });
+  };
+
   // Destructure based on the Trip type from trip.ts
   const {
     operator,
@@ -87,6 +97,16 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
           boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
           borderColor: 'primary.main',
         },
+        cursor: 'pointer',
+      }}
+      onClick={handleSelectTrip}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleSelectTrip();
+        }
       }}
     >
       <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
@@ -107,7 +127,10 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
               {/* Bus Image */}
               <Box
                 component="img"
-                src={bus.images?.[0] || 'https://via.placeholder.com/150'}
+                src={
+                  bus.images?.[0] ||
+                  'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=300'
+                }
                 alt={operator.name}
                 sx={{
                   width: 120,
@@ -313,6 +336,7 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                 variant="contained"
                 fullWidth
                 size="large"
+                onClick={handleSelectTrip}
                 sx={{
                   bgcolor: 'warning.main',
                   color: 'warning.contrastText',

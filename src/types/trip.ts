@@ -53,3 +53,24 @@ export interface Trip {
   rating?: number;
   review_count?: number;
 }
+
+export type SeatStatus = 'available' | 'booked' | 'maintenance' | 'selected';
+
+export interface Seat {
+  seatId: string;
+  seatCode: string;
+  status: SeatStatus;
+  price: number;
+  type: string | null;
+  deck: number;
+  row: number;
+  col: number;
+}
+
+export interface SeatLayout {
+  tripId: string;
+  totalDecks: number;
+  gridRows: number;
+  gridColumns: number;
+  seats: Seat[];
+}

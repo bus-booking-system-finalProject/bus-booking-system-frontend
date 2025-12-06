@@ -1,5 +1,5 @@
 import { apiClient } from './axios';
-import type { Trip } from '@/types/trip';
+import type { Trip, SeatLayout } from '@/types/trip';
 
 export interface SearchTripsParams {
   origin: string;
@@ -56,4 +56,29 @@ export const searchTrips = async (params: SearchTripsParams): Promise<SearchResp
     params: cleanParams,
   });
   return response.data;
+};
+
+// 1. Define the wrapper based on your JSON
+interface TripDetailResponse {
+  success: boolean;
+  data: Trip;
+}
+
+export const getTripById = async (tripId: string): Promise<Trip> => {
+  // 2. Fetch the wrapper
+  const response = await apiClient.get<TripDetailResponse>(`/booking/trips/${tripId}`);
+
+  // 3. IMPORTANT: Return the inner 'data' property
+  // This ensures the component receives the actual Trip object, not the wrapper.
+  return response.data.data;
+};
+
+interface SeatResponseWrapper {
+  success: boolean;
+  data: SeatLayout;
+}
+
+export const getTripSeats = async (tripId: string): Promise<SeatLayout> => {
+  const response = await apiClient.get<SeatResponseWrapper>(`/booking/trips/${tripId}/seats`);
+  return response.data.data;
 };
