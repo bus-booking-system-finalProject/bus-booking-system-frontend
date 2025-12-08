@@ -1,6 +1,6 @@
 import { createRoute, Outlet } from '@tanstack/react-router';
 import { rootRoute } from './RootRoute.tsx';
-import Header from '@/components/Header.tsx';
+import Header from '@/components/layout/Header.tsx';
 
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,

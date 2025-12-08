@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
-import AuthModal from './AuthModal';
+import AuthModal from '../components/layout/AuthModal';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock the auth API
