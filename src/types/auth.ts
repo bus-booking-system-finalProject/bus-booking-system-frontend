@@ -7,6 +7,10 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export interface UserProfileResponse {
+  user: UserProfile;
+}
+
 // Response from POST /user/login
 export interface LoginResponse {
   accessToken: string;
@@ -15,5 +19,5 @@ export interface LoginResponse {
 
 // Response from POST /user/register
 export interface RegisterResponse {
-  message: string;
+  user: UserProfile;
 }

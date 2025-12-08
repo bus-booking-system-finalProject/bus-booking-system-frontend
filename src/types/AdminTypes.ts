@@ -1,5 +1,14 @@
+// src/types/AdminTypes.ts
+
 export type BusType = 'SLEEPER' | 'LIMOUSINE' | 'SEATER' | 'VIP';
 export type TripStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'DELAYED';
+
+// --- GENERIC RESPONSE WRAPPER ---
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message: string;
+}
 
 // --- SHARED / GENERIC ---
 export interface PaginationParams {
