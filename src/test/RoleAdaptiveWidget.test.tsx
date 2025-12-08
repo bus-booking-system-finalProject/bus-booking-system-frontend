@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
-import RoleAdaptiveWidget from './RoleAdaptiveWidget';
+import RoleAdaptiveWidget from '@/components/dashboard/RoleAdaptiveWidget';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock the useAuth hook

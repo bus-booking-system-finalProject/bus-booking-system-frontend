@@ -5,5 +5,5 @@ import OperatorsPage from '@/pages/admin/OperatorsPage';
 export const operatorRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/operators',
-  component: OperatorsPage
+  component: OperatorsPage,
 });

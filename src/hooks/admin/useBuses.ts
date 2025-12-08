@@ -31,8 +31,7 @@ export const useMutateBus = () => {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: busKeys.all }),
     }),
     update: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: Partial<Bus> }) =>
-        BusesApi.update(id, data),
+      mutationFn: ({ id, data }: { id: string; data: Partial<Bus> }) => BusesApi.update(id, data),
       onSuccess: () => queryClient.invalidateQueries({ queryKey: busKeys.all }),
     }),
     delete: useMutation({

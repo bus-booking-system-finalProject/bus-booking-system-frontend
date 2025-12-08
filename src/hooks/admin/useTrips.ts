@@ -17,7 +17,7 @@ export const useSearchTrips = (params: TripSearchRequest) => {
     queryKey: tripKeys.search(params),
     queryFn: () => TripsApi.search(params),
     // Keep previous data while fetching new page to avoid flicker
-    placeholderData: (previousData) => previousData, 
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -50,8 +50,7 @@ export const useMutateTrip = () => {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: tripKeys.all }),
     }),
     update: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: Partial<Trip> }) =>
-        TripsApi.update(id, data),
+      mutationFn: ({ id, data }: { id: string; data: Partial<Trip> }) => TripsApi.update(id, data),
       onSuccess: (_, variables) => {
         queryClient.invalidateQueries({ queryKey: tripKeys.all });
         queryClient.invalidateQueries({ queryKey: tripKeys.detail(variables.id) });

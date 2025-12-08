@@ -1,4 +1,4 @@
-import { LayoutDashboard, Bus, Building2, Map, Armchair, CalendarClock } from 'lucide-react';
+import { LayoutDashboard, Bus, Building2, Map, CalendarClock } from 'lucide-react';
 
 export interface AdminTabItem {
   label: string;

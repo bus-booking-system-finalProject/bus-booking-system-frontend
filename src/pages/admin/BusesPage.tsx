@@ -25,7 +25,7 @@ import type { Bus, BusType } from '@/types/AdminTypes';
 export default function BusesPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  
+
   // Default form state
   const [formData, setFormData] = useState<Partial<Bus>>({
     type: 'SLEEPER',
@@ -35,7 +35,7 @@ export default function BusesPage() {
   // Queries
   const { data: buses = [], isLoading: loadingBuses } = useBuses();
   const { data: operators = [] } = useOperators();
-  
+
   // Mutations
   const { create, update, delete: remove } = useMutateBus();
 
@@ -64,10 +64,7 @@ export default function BusesPage() {
     }
 
     if (editingId) {
-      update.mutate(
-        { id: editingId, data: formData },
-        { onSuccess: handleClose }
-      );
+      update.mutate({ id: editingId, data: formData }, { onSuccess: handleClose });
     } else {
       create.mutate(formData as Bus, { onSuccess: handleClose });
     }
@@ -79,11 +76,11 @@ export default function BusesPage() {
 
   const columns: GridColDef[] = [
     { field: 'plateNumber', headerName: 'Plate Number', width: 150 },
-    { 
-      field: 'operatorId', 
-      headerName: 'Operator', 
+    {
+      field: 'operatorId',
+      headerName: 'Operator',
       width: 200,
-      valueGetter: (_, row) => operators.find(op => op.id === row.operatorId)?.name || 'Unknown'
+      valueGetter: (_, row) => operators.find((op) => op.id === row.operatorId)?.name || 'Unknown',
     },
     { field: 'model', headerName: 'Model', width: 150 },
     { field: 'type', headerName: 'Type', width: 130 },
@@ -110,7 +107,10 @@ export default function BusesPage() {
   return (
     <Box sx={{ height: '100%', width: '100%', p: 2 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}
+        >
           <DirectionsBus /> Fleet Management
         </Typography>
         <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
@@ -118,12 +118,7 @@ export default function BusesPage() {
         </Button>
       </Stack>
 
-      <DataGrid
-        rows={buses}
-        columns={columns}
-        autoHeight
-        sx={{ bgcolor: 'white' }}
-      />
+      <DataGrid rows={buses} columns={columns} autoHeight sx={{ bgcolor: 'white' }} />
 
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
@@ -153,7 +148,7 @@ export default function BusesPage() {
                 value={formData.plateNumber || ''}
                 onChange={(e) => setFormData({ ...formData, plateNumber: e.target.value })}
               />
-              
+
               <TextField
                 label="Model"
                 fullWidth
