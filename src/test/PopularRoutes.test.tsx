@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import '@testing-library/jest-dom';
-import PopularRoutes from './PopularRoutes';
+import PopularRoutes from '../components/home/PopularRoutes';
 
 // We don't need to mock anything here because PopularRoutes uses static data
 describe('PopularRoutes Component', () => {

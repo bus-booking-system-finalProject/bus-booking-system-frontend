@@ -20,7 +20,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm } from '@tanstack/react-form';
 import { LoginSchema, RegisterSchema } from '@/schemas/AuthSchema';
 import { useAuth } from '@/hooks/useAuth';
-import { loginUser, registerUser } from '@/lib/api/auth';
+import { loginUser, registerUser } from '@/lib/api/AuthApi';
 import type { UserProfile } from '@/types/auth';
 import { getAPIUrl } from '@/config/api';
 import { useNavigate } from '@tanstack/react-router';

@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useCallback, useState, useLayoutEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiPrivate } from '@/lib/api/axios';
-import { getMe, refreshToken as refreshAuthToken, logoutUser } from '@/lib/api/auth';
+import { getMe, refreshToken as refreshAuthToken, logoutUser } from '@/lib/api/AuthApi';
 import { type UserProfile } from '@/types/auth';
 import { AuthContext } from '../hooks/useAuth';
 

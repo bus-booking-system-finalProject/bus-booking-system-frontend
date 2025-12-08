@@ -9,7 +9,7 @@ import { getTripById } from '@/lib/api/trips';
 import { tripDetailRoute } from '@/routes/tripDetailRoute';
 
 // Custom Components
-import Header from '@/components/Header';
+import Header from '@/components/layout/Header';
 import TripHeader from '@/components/trip-detail/TripHeader';
 import TripAmenities from '@/components/trip-detail/TripAmenities';
 import TripSchedule from '@/components/trip-detail/TripSchedule';

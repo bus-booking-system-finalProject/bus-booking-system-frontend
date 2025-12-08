@@ -17,7 +17,7 @@ const tripSearchSchema = z.object({
   busTypes: z.union([z.string(), z.array(z.string())]).optional(),
   times: z.union([z.string(), z.array(z.string())]).optional(),
 });
-import Header from '@/components/Header.tsx';
+import Header from '@/components/layout/Header.tsx';
 import { rootRoute } from './RootRoute.tsx';
 
 export const searchResultRoute = createRoute({
