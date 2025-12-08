@@ -133,7 +133,7 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
         ) : isError ? (
           <Stack alignItems="center" spacing={1} sx={{ p: 2, textAlign: 'center' }}>
             <Alert severity="error" sx={{ width: '100%', fontSize: '0.8rem' }}>
-              Không thể tải sơ đồ ghế.
+              {error instanceof Error ? error.message : 'Không thể tải sơ đồ ghế.'}
             </Alert>
             <Button size="small" onClick={() => window.location.reload()}>
               Thử lại
