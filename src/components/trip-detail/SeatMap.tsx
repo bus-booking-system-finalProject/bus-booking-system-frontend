@@ -1,6 +1,7 @@
+// src/components/trip-detail/SeatMap.tsx
 import React, { useState } from 'react';
 import { Box, Typography, Stack, Tabs, Tab, Tooltip } from '@mui/material';
-import { EventSeat } from '@mui/icons-material';
+import { EventSeat, Lock } from '@mui/icons-material'; // Import Lock icon
 import { type Seat, type SeatLayout } from '@/types/trip';
 
 interface SeatMapProps {
@@ -29,55 +30,79 @@ const SeatMap: React.FC<SeatMapProps> = ({ layout, selectedSeats, onSeatToggle }
 
     const selected = isSelected(seat.seatId);
     const booked = seat.status === 'booked';
+    const locked = seat.status === 'locked';
 
-    // Determine color
-    let color = '#e0e0e0'; // Default gray (booked)
+    // Status Logic
+    const isUnavailable = booked || locked;
+
+    // Determine visuals
+    let bgcolor = '#e0e0e0'; // Default gray
+    let borderColor = 'transparent';
+    let iconColor = '#9e9e9e';
     let cursor = 'not-allowed';
+    let tooltipTitle = '';
 
-    if (!booked) {
+    if (booked) {
+      bgcolor = '#e0e0e0'; // Gray
+      iconColor = '#9e9e9e'; // Dark Gray
+      tooltipTitle = 'Đã bán';
+    } else if (locked) {
+      bgcolor = '#ffcdd2'; // Light Red
+      iconColor = '#e57373'; // Red
+      tooltipTitle = 'Đang giữ chỗ'; // "Held by someone else"
+    } else if (selected) {
+      bgcolor = '#FFC107'; // Yellow/Orange
+      borderColor = '#ffca2c';
+      iconColor = '#fff';
       cursor = 'pointer';
-      if (selected) {
-        color = '#FFC107'; // Selected (Orange/Warning)
-      } else {
-        color = '#d1e7dd'; // Available (Light Green/Blue)
-      }
+      tooltipTitle = `${seat.seatCode} - ${seat.price.toLocaleString()}đ`;
+    } else {
+      // Available
+      bgcolor = '#d1e7dd'; // Light Green
+      iconColor = '#198754'; // Green
+      cursor = 'pointer';
+      tooltipTitle = `${seat.seatCode} - ${seat.price.toLocaleString()}đ`;
     }
 
     return (
-      <Tooltip
-        key={seat.seatId}
-        title={booked ? 'Booked' : `${seat.seatCode} - ${seat.price.toLocaleString()}đ`}
-      >
+      <Tooltip key={seat.seatId} title={tooltipTitle} arrow>
         <Box
-          onClick={() => !booked && onSeatToggle(seat)}
+          onClick={() => !isUnavailable && onSeatToggle(seat)}
           sx={{
             width: 40,
             height: 40,
-            bgcolor: color,
+            bgcolor: bgcolor,
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: cursor,
-            border: selected ? '2px solid #ffca2c' : '1px solid transparent',
+            border: `1px solid ${selected ? borderColor : 'transparent'}`,
             transition: 'all 0.2s',
             position: 'relative',
             '&:hover': {
-              bgcolor: !booked && !selected ? '#a3cfbb' : color, // Darker green on hover
+              // Only darken if it's clickable (available/selected)
+              bgcolor: !isUnavailable && !selected ? '#a3cfbb' : bgcolor,
+              transform: !isUnavailable ? 'scale(1.05)' : 'none',
             },
           }}
         >
           <Stack alignItems="center" spacing={-0.5}>
-            <EventSeat
-              sx={{
-                fontSize: 18,
-                color: booked ? '#9e9e9e' : selected ? '#fff' : '#198754',
-                opacity: 0.7,
-              }}
-            />
+            {/* Use Lock icon for locked seats, Seat icon for others */}
+            {locked ? (
+              <Lock sx={{ fontSize: 16, color: iconColor, opacity: 0.7 }} />
+            ) : (
+              <EventSeat sx={{ fontSize: 18, color: iconColor, opacity: 0.8 }} />
+            )}
+
             <Typography
               variant="caption"
-              sx={{ fontSize: '0.65rem', fontWeight: 700, color: booked ? '#9e9e9e' : '#1a1a1a' }}
+              sx={{
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                color: isUnavailable ? '#757575' : '#1a1a1a',
+                mt: 0,
+              }}
             >
               {seat.seatCode}
             </Typography>
@@ -105,7 +130,7 @@ const SeatMap: React.FC<SeatMapProps> = ({ layout, selectedSeats, onSeatToggle }
           sx={{ mb: 2, minHeight: 36, '& .MuiTab-root': { py: 0.5, minHeight: 36 } }}
         >
           {Array.from({ length: layout.totalDecks }).map((_, i) => (
-            <Tab key={i + 1} label={`Deck ${i + 1}`} value={i + 1} />
+            <Tab key={i + 1} label={`Tầng ${i + 1}`} value={i + 1} />
           ))}
         </Tabs>
       )}
@@ -126,24 +151,22 @@ const SeatMap: React.FC<SeatMapProps> = ({ layout, selectedSeats, onSeatToggle }
       </Box>
 
       {/* Legend */}
-      <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ mt: 2, flexWrap: 'wrap', justifyContent: 'center', gap: 1 }}
+      >
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Box
-            sx={{ w: 12, h: 12, borderRadius: 0.5, bgcolor: '#d1e7dd', width: 16, height: 16 }}
-          />
+          <Box sx={{ borderRadius: 0.5, bgcolor: '#d1e7dd', width: 16, height: 16 }} />
           <Typography variant="caption">Ghế trống</Typography>
         </Stack>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Box
-            sx={{ w: 12, h: 12, borderRadius: 0.5, bgcolor: '#FFC107', width: 16, height: 16 }}
-          />
-          <Typography variant="caption">Đã chọn</Typography>
+          <Box sx={{ borderRadius: 0.5, bgcolor: '#FFC107', width: 16, height: 16 }} />
+          <Typography variant="caption">Đang chọn</Typography>
         </Stack>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Box
-            sx={{ w: 12, h: 12, borderRadius: 0.5, bgcolor: '#e0e0e0', width: 16, height: 16 }}
-          />
-          <Typography variant="caption">Đã đặt</Typography>
+          <Box sx={{ borderRadius: 0.5, bgcolor: '#e0e0e0', width: 16, height: 16 }} />
+          <Typography variant="caption">Đã bán</Typography>
         </Stack>
       </Stack>
     </Box>

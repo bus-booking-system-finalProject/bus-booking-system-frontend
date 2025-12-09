@@ -54,7 +54,7 @@ export interface Trip {
   review_count?: number;
 }
 
-export type SeatStatus = 'available' | 'booked' | 'maintenance' | 'selected';
+export type SeatStatus = 'available' | 'booked' | 'maintenance' | 'selected' | 'locked';
 
 export interface Seat {
   seatId: string;
@@ -73,4 +73,49 @@ export interface SeatLayout {
   gridRows: number;
   gridColumns: number;
   seats: Seat[];
+}
+
+export interface CreateBookingRequest {
+  tripId: string;
+  seats: string[];
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  isGuestCheckout: boolean;
+}
+
+// UPDATED: Matches the "GET /booking/tickets/{id}" response
+export interface BookingResponse {
+  ticketId: string;
+  ticketCode: string;
+  // tripId might be at root or inside tripDetails depending on endpoint, keeping it optional here to be safe
+  tripId?: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  seats: string[];
+
+  // Contact Info (New)
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+
+  // Nested Trip Details (New - used in Checkout Page)
+  tripDetails?: {
+    tripId: string;
+    route: string;
+    operator: string;
+    departureTime: string;
+    arrivalTime: string;
+  };
+
+  pricing: {
+    // Made optional because GET response snippet only showed total/currency
+    subtotal?: number;
+    serviceFee?: number;
+    total: number;
+    currency: string;
+  };
+
+  lockedUntil?: string;
+  createdAt: string;
+  confirmedAt?: string | null;
 }

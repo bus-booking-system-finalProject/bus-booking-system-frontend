@@ -1,5 +1,5 @@
-import { apiClient } from './axios';
-import type { Trip, SeatLayout } from '@/types/trip';
+import { apiClient, apiPrivate } from './axios';
+import type { Trip, SeatLayout, CreateBookingRequest, BookingResponse } from '@/types/trip';
 
 export interface SearchTripsParams {
   origin: string;
@@ -81,4 +81,16 @@ interface SeatResponseWrapper {
 export const getTripSeats = async (tripId: string): Promise<SeatLayout> => {
   const response = await apiClient.get<SeatResponseWrapper>(`/booking/trips/${tripId}/seats`);
   return response.data.data;
+};
+
+export const createBooking = async (data: CreateBookingRequest): Promise<BookingResponse> => {
+  // CHANGE: Use 'apiPrivate' here so the token is attached automatically
+  const response = await apiPrivate.post<BookingResponse>('/booking/tickets', data);
+  return response.data;
+};
+
+export const getBookingById = async (ticketId: string): Promise<BookingResponse> => {
+  // Using apiPrivate because viewing a booking usually requires auth
+  const response = await apiPrivate.get<BookingResponse>(`/booking/tickets/${ticketId}`);
+  return response.data;
 };
