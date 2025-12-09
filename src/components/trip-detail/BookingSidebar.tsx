@@ -33,7 +33,7 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
   const navigate = useNavigate();
   // State for selected seats
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
-  const { user, isLoggedIn, accessToken } = useAuth();
+  const { isLoggedIn } = useAuth();
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -46,7 +46,6 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
     data: seatLayout,
     isLoading,
     isError,
-    error,
   } = useQuery({
     queryKey: ['trip-seats', trip.tripId],
     queryFn: () => getTripSeats(trip.tripId),
@@ -102,11 +101,6 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
   const handleOpenConfirmDialog = () => {
     if (selectedSeats.length === 0) return;
 
-    if (!isLoggedIn || !accessToken || !user) {
-      alert('Bạn cần đăng nhập để đặt vé.');
-      return;
-    }
-
     // Pre-fill form with user data from Auth Context
     setFormData({
       name: '',
@@ -117,9 +111,15 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
     setOpenDialog(true);
   };
 
-  // 4. Handle "Confirm" inside Dialog -> CALL API
   const handleSubmitBooking = () => {
+    // Basic validation for guests (optional but recommended)
+    if (!formData.name || !formData.phone || !formData.email) {
+      alert('Vui lòng điền đầy đủ thông tin liên hệ.');
+      return;
+    }
+
     const seatCodes = selectedSeats.map((s) => s.seatCode);
+    const isGuest = !isLoggedIn; // Determine if guest checkout
 
     mutation.mutate({
       tripId: trip.tripId,
@@ -127,7 +127,7 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
       contactName: formData.name,
       contactEmail: formData.email,
       contactPhone: formData.phone,
-      isGuestCheckout: false,
+      isGuestCheckout: isGuest, // Pass the flag to backend
     });
   };
 
@@ -312,7 +312,7 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
         <DialogTitle
           sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <Typography variant="h6" fontWeight={700}>
+          <Typography variant="h6" component="div" fontWeight={700}>
             Xác nhận thông tin
           </Typography>
           <Button
@@ -327,9 +327,14 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
 
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <Alert severity="info" sx={{ fontSize: '0.85rem' }}>
-              Bạn đang đặt {selectedSeats.length} vé:{' '}
-              <b>{selectedSeats.map((s) => s.seatCode).join(', ')}</b>
+            {!isLoggedIn && (
+              <Alert severity="info" sx={{ fontSize: '0.85rem' }}>
+                Bạn đang đặt vé với tư cách là <b>Khách</b>.
+              </Alert>
+            )}
+
+            <Alert severity="success" icon={false} sx={{ fontSize: '0.85rem', bgcolor: '#e8f5e9' }}>
+              Ghế đang chọn: <b>{selectedSeats.map((s) => s.seatCode).join(', ')}</b>
             </Alert>
 
             <TextField
@@ -338,6 +343,7 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
               size="small"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              error={!formData.name && mutation.isError} // Simple validation visual
             />
             <TextField
               label="Số điện thoại"
