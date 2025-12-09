@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 import { getBookingById } from '@/lib/api/trips';
 import { bookingCheckoutRoute } from '@/routes/BookingCheckoutRoute';
-import Header from '@/components/Header';
+import Header from '@/components/layout/Header';
 
 const BookingCheckoutPage: React.FC = () => {
   const { ticketId } = useSearch({ from: bookingCheckoutRoute.id });
