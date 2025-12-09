@@ -47,10 +47,7 @@ export default function OperatorsPage() {
     const payload = formData as Operator; // Basic casting for simplicity
 
     if (editingId) {
-      update.mutate(
-        { id: editingId, data: payload },
-        { onSuccess: handleClose }
-      );
+      update.mutate({ id: editingId, data: payload }, { onSuccess: handleClose });
     } else {
       create.mutate(payload, { onSuccess: handleClose });
     }
@@ -75,11 +72,7 @@ export default function OperatorsPage() {
           <IconButton size="small" onClick={() => handleOpen(params.row)}>
             <Edit fontSize="small" />
           </IconButton>
-          <IconButton
-            size="small"
-            color="error"
-            onClick={() => handleDelete(params.row.id)}
-          >
+          <IconButton size="small" color="error" onClick={() => handleDelete(params.row.id)}>
             <Delete fontSize="small" />
           </IconButton>
         </Stack>
@@ -91,13 +84,11 @@ export default function OperatorsPage() {
 
   return (
     <Box sx={{ height: '100%', width: '100%', p: 2 }}>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}
-      >
-        <Typography variant="h5" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}
+        >
           <Business /> Operator Management
         </Typography>
         <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
@@ -119,9 +110,7 @@ export default function OperatorsPage() {
 
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
-          <DialogTitle>
-            {editingId ? 'Edit Operator' : 'Add New Operator'}
-          </DialogTitle>
+          <DialogTitle>{editingId ? 'Edit Operator' : 'Add New Operator'}</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2}>
               <TextField
@@ -129,9 +118,7 @@ export default function OperatorsPage() {
                 fullWidth
                 required
                 value={formData.name || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
               <TextField
                 label="Contact Email"
@@ -139,18 +126,14 @@ export default function OperatorsPage() {
                 fullWidth
                 required
                 value={formData.contactEmail || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, contactEmail: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
               />
               <TextField
                 label="Contact Phone"
                 fullWidth
                 required
                 value={formData.contactPhone || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, contactPhone: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
               />
             </Stack>
           </DialogContent>

@@ -42,7 +42,7 @@ const INITIAL_FORM_STATE: RouteFormData = {
 export default function RoutesPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  
+
   // Use the Write DTO type for form state
   const [formData, setFormData] = useState<RouteFormData>(INITIAL_FORM_STATE);
 
@@ -76,7 +76,7 @@ export default function RoutesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.operatorId) {
       alert('Please select an operator');
       return;
@@ -84,9 +84,9 @@ export default function RoutesPage() {
 
     // Ensure numeric values are numbers
     const payload = {
-        ...formData,
-        distanceKm: Number(formData.distanceKm),
-        estimatedMinutes: Number(formData.estimatedMinutes)
+      ...formData,
+      distanceKm: Number(formData.distanceKm),
+      estimatedMinutes: Number(formData.estimatedMinutes),
     };
 
     if (editingId) {
@@ -102,9 +102,9 @@ export default function RoutesPage() {
   };
 
   const columns: GridColDef<Route>[] = [
-    { 
-      field: 'operator', 
-      headerName: 'Operator', 
+    {
+      field: 'operator',
+      headerName: 'Operator',
       width: 150,
       // Safely access the nested operator object for display
       valueGetter: (_, row) => row.operator?.name || 'N/A',
@@ -137,7 +137,10 @@ export default function RoutesPage() {
   return (
     <Box sx={{ height: '100%', width: '100%', p: 2 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}
+        >
           <Map /> Route Management
         </Typography>
         <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
@@ -158,7 +161,6 @@ export default function RoutesPage() {
           <DialogTitle>{editingId ? 'Edit Route' : 'Create New Route'}</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2}>
-              
               {/* Operator Selection */}
               <FormControl fullWidth>
                 <InputLabel>Operator</InputLabel>
@@ -169,7 +171,9 @@ export default function RoutesPage() {
                   required
                 >
                   {operators.map((op) => (
-                    <MenuItem key={op.id} value={op.id}>{op.name}</MenuItem>
+                    <MenuItem key={op.id} value={op.id}>
+                      {op.name}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>

@@ -15,14 +15,7 @@ import {
   Radio,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-
-// --- CONSTANTS ---
-export const TIME_RANGES = [
-  { label: 'Buổi sáng', value: 'morning' },
-  { label: 'Buổi chiều', value: 'afternoon' },
-  { label: 'Buổi tối', value: 'evening' },
-  { label: 'Đêm', value: 'night' },
-];
+import { TIME_RANGES } from '@/config/TripFilters';
 
 // --- TYPES ---
 export interface FilterState {

@@ -17,7 +17,7 @@ import {
 import { ShieldCheck, LogOut, Home, Menu } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuth } from '@/hooks/useAuth';
-import { ADMIN_TABS } from '@/config/adminTabs';
+import { ADMIN_TABS } from '@/config/AdminTabs';
 
 interface AdminHeaderProps {
   activeTab: number;

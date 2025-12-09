@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Box, Container } from '@mui/material';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { AdminHeader } from '@/components/admin/AdminHeader';
-import { ADMIN_TABS } from '@/config/adminTabs';
+import { ADMIN_TABS } from '@/config/AdminTabs';
 import { AdminLayoutContext, type AdminContextType } from '@/context/AdminLayoutContext';
 
 interface AdminRootLayoutProps {

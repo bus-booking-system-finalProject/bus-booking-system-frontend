@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import type { AdminTabItem } from '@/config/adminTabs';
+import type { AdminTabItem } from '@/config/AdminTabs';
 
 // 1. Define the Context Type
 export interface AdminContextType {

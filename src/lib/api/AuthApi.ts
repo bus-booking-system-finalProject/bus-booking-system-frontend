@@ -2,7 +2,12 @@
 import { AxiosError } from 'axios';
 import { type LoginType, type RegisterType } from '@/schemas/AuthSchema';
 import { apiClient, apiPrivate } from './axios';
-import { type RegisterResponse, type UserProfileResponse, type LoginResponse } from '@/types/auth';
+import {
+  type UserProfile,
+  type RegisterResponse,
+  type UserProfileResponse,
+  type LoginResponse,
+} from '@/types/auth';
 
 // Standardized Response Wrapper
 interface ApiResponse<T> {
@@ -64,10 +69,10 @@ export const refreshToken = async (): Promise<LoginResponse> => {
  * Fetches the current user's profile
  * GET /user/me
  */
-export const getMe = async (): Promise<UserProfileResponse> => {
+export const getMe = async (): Promise<UserProfile> => {
   try {
     const response = await apiPrivate.get<ApiResponse<UserProfileResponse>>('/user/me');
-    return response.data.data;
+    return response.data.data.user;
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
     throw new Error(error.response?.data?.message || 'Could not fetch user profile');
