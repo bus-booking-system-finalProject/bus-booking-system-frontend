@@ -14,12 +14,17 @@ import {
   Divider,
 } from '@mui/material';
 import { LucideLayoutDashboard as DashboardIcon } from 'lucide-react';
-import { Menu as MenuIcon, DirectionsBusFilled, Logout, AccountCircle } from '@mui/icons-material';
+import {
+  Menu as MenuIcon,
+  DirectionsBusFilled,
+  Logout,
+  AccountCircle,
+  Search,
+} from '@mui/icons-material';
 import AuthModal from './AuthModal';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useAuth } from '@/hooks/useAuth';
-
-const pages = ['Giới thiệu', 'Cổ đông', 'Liên hệ'];
+import { NAV_ITEMS, type NavItem } from '@/config/HeaderNav';
 
 function Header() {
   const { isLoggedIn, user, logout } = useAuth();
@@ -28,7 +33,6 @@ function Header() {
   const location = useLocation();
 
   const currentPath = location.pathname;
-  // --- STATE: Track active page ---
   const [activePage, setActivePage] = useState<string>('');
 
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
@@ -36,10 +40,10 @@ function Header() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isActive = (path: string) => {
-    if (path === '/') return currentPath === '/'; // Trang chủ
+    if (path === '/') return currentPath === '/';
     return currentPath.startsWith(path);
   };
-  // --- Handlers ---
+
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget);
   };
@@ -47,11 +51,10 @@ function Header() {
     setAnchorElNav(null);
   };
 
-  // Xử lý khi click vào Menu Item (Pages)
-  const handlePageClick = (page: string) => {
-    setActivePage(page);
+  const handlePageClick = (item: NavItem) => {
+    setActivePage(item.label);
     handleCloseNavMenu();
-    // navigate({ to: ... }) // Logic điều hướng của bạn ở đây
+    navigate({ to: item.path });
   };
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -64,7 +67,7 @@ function Header() {
   const handleLogout = () => {
     handleCloseUserMenu();
     logout();
-    setActivePage(''); // Reset active page khi logout
+    setActivePage('');
   };
 
   const handleOpenModal = () => {
@@ -80,15 +83,15 @@ function Header() {
   };
 
   const handleLogoClick = () => {
-    setActivePage(''); // Reset active state về trang chủ
+    setActivePage('');
+    navigate({ to: '/' });
   };
+
   return (
     <AppBar position="sticky" sx={{ bgcolor: '#0060c4', color: 'white', boxShadow: 0 }}>
       <Container maxWidth="xl">
         <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
-          {/* ==============================
-              1. MOBILE VIEW: MENU ICON (LEFT)
-             ============================== */}
+          {/* 1. MOBILE MENU */}
           <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
             <IconButton
               size="large"
@@ -109,17 +112,13 @@ function Header() {
               onClose={handleCloseNavMenu}
               sx={{ display: { xs: 'block', md: 'none' } }}
             >
-              {pages.map((page) => (
+              {NAV_ITEMS.map((item) => (
                 <MenuItem
-                  key={page}
-                  onClick={() => handlePageClick(page)}
-                  // Highlight trên Mobile Menu
-                  selected={activePage === page}
-                  sx={{
-                    '&.Mui-selected': { bgcolor: 'rgba(0, 96, 196, 0.1)' },
-                  }}
+                  key={item.label}
+                  onClick={() => handlePageClick(item)}
+                  selected={activePage === item.label}
                 >
-                  <Typography textAlign="center">{page}</Typography>
+                  <Typography textAlign="center">{item.label}</Typography>
                 </MenuItem>
               ))}
               {isAdmin && (
@@ -128,9 +127,6 @@ function Header() {
                     handleCloseNavMenu();
                     navigate({ to: '/admin' });
                   }}
-                  sx={{
-                    '&.Mui-selected': { bgcolor: 'rgba(0, 96, 196, 0.1)' },
-                  }}
                 >
                   <Typography textAlign="center">Dashboard</Typography>
                 </MenuItem>
@@ -138,17 +134,15 @@ function Header() {
             </Menu>
           </Box>
 
-          {/* ==============================
-              2. DESKTOP VIEW: LOGO (LEFT)
-             ============================== */}
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}>
+          {/* 2. DESKTOP LOGO */}
+          <Box
+            sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', cursor: 'pointer' }}
+            onClick={handleLogoClick}
+          >
             <DirectionsBusFilled sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
             <Typography
               variant="h6"
               noWrap
-              component="a"
-              href="/"
-              onClick={handleLogoClick}
               sx={{
                 mr: 4,
                 display: { xs: 'none', md: 'flex' },
@@ -164,17 +158,20 @@ function Header() {
             </Typography>
           </Box>
 
-          {/* ==============================
-              3. MOBILE VIEW: LOGO (CENTER)
-             ============================== */}
-          <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', flexGrow: 1 }}>
+          {/* 3. MOBILE LOGO */}
+          <Box
+            sx={{
+              display: { xs: 'flex', md: 'none' },
+              alignItems: 'center',
+              flexGrow: 1,
+              cursor: 'pointer',
+            }}
+            onClick={handleLogoClick}
+          >
             <DirectionsBusFilled sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
             <Typography
               variant="h6"
               noWrap
-              component="a"
-              href="/"
-              onClick={handleLogoClick}
               sx={{
                 display: { xs: 'flex', md: 'none' },
                 fontFamily: '"Roboto", sans-serif',
@@ -188,38 +185,31 @@ function Header() {
             </Typography>
           </Box>
 
-          {/* ==============================
-              4. DESKTOP VIEW: NAVIGATION (CENTER/RIGHT)
-             ============================== */}
+          {/* 4. DESKTOP NAV */}
           <Box
             sx={{
               flexGrow: 1,
               display: { xs: 'none', md: 'flex' },
               justifyContent: 'flex-end',
               mr: 2,
-              gap: 1, // Khoảng cách giữa các nút
+              gap: 1,
             }}
           >
-            {pages.map((page) => {
-              const pathMap: Record<string, string> = {
-                'Giới thiệu': '/gioi-thieu',
-                'Cổ đông': '/co-dong',
-                'Liên hệ': '/lien-he',
-              };
-              const pagePath = pathMap[page] || '/';
-              const active = isActive(pagePath);
+            {NAV_ITEMS.map((item) => {
+              const active = isActive(item.path);
 
               return (
                 <Button
-                  key={page}
+                  key={item.label}
                   onClick={() => {
                     handleCloseNavMenu();
-                    navigate({ to: pagePath });
+                    navigate({ to: item.path });
                   }}
+                  startIcon={item.label === 'Tra cứu vé' ? <Search /> : undefined}
                   sx={{
                     my: 2,
                     color: 'white',
-                    display: 'block',
+                    display: 'flex',
                     px: 2,
                     borderRadius: 2,
                     bgcolor: active ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
@@ -230,12 +220,11 @@ function Header() {
                     transition: 'all 0.2s',
                   }}
                 >
-                  {page}
+                  {item.label}
                 </Button>
               );
             })}
 
-            {/* Dashboard Button */}
             {isAdmin && (
               <Button
                 onClick={handleNavigateDashboard}
@@ -245,15 +234,15 @@ function Header() {
                   ml: 2,
                   display: { xs: 'none', md: 'flex' },
                   bgcolor: 'white',
-                  color: '#0060c4', // Primary brand color
+                  color: '#0060c4',
                   fontWeight: 800,
                   px: 2.5,
                   borderRadius: 2,
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.15)', // Drop shadow for depth
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
                   textTransform: 'none',
                   '&:hover': {
                     bgcolor: '#f5f5f5',
-                    transform: 'translateY(-1px)', // Subtle lift effect
+                    transform: 'translateY(-1px)',
                     boxShadow: '0 6px 12px rgba(0,0,0,0.2)',
                   },
                   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -264,9 +253,7 @@ function Header() {
             )}
           </Box>
 
-          {/* ==============================
-              5. AUTH SECTION (RIGHT)
-             ============================== */}
+          {/* 5. AUTH */}
           <Box sx={{ flexGrow: 0 }}>
             {isLoggedIn && user ? (
               <>

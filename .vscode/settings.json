@@ -9,5 +9,14 @@
   "[markdown]": {
     "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
   },
-  "cSpell.words": ["adminpass", "appbar", "khỏe", "newpass", "Tourismo", "VEXESIEURE", "wrongpass"]
+  "cSpell.words": [
+    "adminpass",
+    "appbar",
+    "Futa",
+    "khỏe",
+    "newpass",
+    "Tourismo",
+    "VEXESIEURE",
+    "wrongpass"
+  ]
 }

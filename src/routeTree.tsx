@@ -11,14 +11,16 @@ import { operatorRoute } from './routes/admin/OperatorRoute.tsx';
 import { busRoute } from './routes/admin/BusRoute.tsx';
 import { tripDetailRoute } from './routes/tripDetailRoute.tsx';
 import { bookingCheckoutRoute } from './routes/BookingCheckoutRoute.tsx';
+import { findTicketRoute } from './routes/FindTicketRoute.tsx';
 
 export const routeTree = rootRoute.addChildren([
+  searchResultRoute,
   indexRoute.addChildren([
     HomeRoute,
     oauthCallbackRoute,
-    searchResultRoute,
     tripDetailRoute,
     bookingCheckoutRoute,
+    findTicketRoute,
   ]),
   adminRoute.addChildren([dashboardRoute, tripRoute, routeRoute, operatorRoute, busRoute]),
 ]);
