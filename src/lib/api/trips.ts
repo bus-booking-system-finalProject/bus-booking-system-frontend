@@ -1,5 +1,14 @@
 import { apiClient, apiPrivate } from './axios';
-import type { Trip, SeatLayout, CreateBookingRequest, BookingResponse } from '@/types/trip';
+import type {
+  Trip,
+  SeatLayout,
+  CreateBookingRequest,
+  BookingResponse,
+  LockSeatsRequest,
+  LockSeatsResponse,
+  UnlockSeatsRequest,
+  UnlockSeatsResponse,
+} from '@/types/trip';
 
 export interface SearchTripsParams {
   origin: string;
@@ -92,5 +101,17 @@ export const createBooking = async (data: CreateBookingRequest): Promise<Booking
 export const getBookingById = async (ticketId: string): Promise<BookingResponse> => {
   // Using apiPrivate because viewing a booking usually requires auth
   const response = await apiPrivate.get<BookingResponse>(`/booking/tickets/${ticketId}`);
+  return response.data;
+};
+
+export const lockSeats = async (data: LockSeatsRequest): Promise<LockSeatsResponse> => {
+  // Use apiClient (public) or apiPrivate depending on your security.
+  // Usually locking is public but requires the session ID.
+  const response = await apiClient.post<LockSeatsResponse>('/booking/tickets/lock', data);
+  return response.data;
+};
+
+export const unlockSeats = async (data: UnlockSeatsRequest): Promise<UnlockSeatsResponse> => {
+  const response = await apiClient.post<UnlockSeatsResponse>('/booking/tickets/unlock', data);
   return response.data;
 };
