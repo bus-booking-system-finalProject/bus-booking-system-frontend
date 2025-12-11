@@ -15,7 +15,7 @@ import {
   DialogActions,
   TextField,
 } from '@mui/material';
-import { DirectionsBus, Close, AccessTime } from '@mui/icons-material';
+import { Close, AccessTime } from '@mui/icons-material';
 import { type Trip, type Seat } from '@/types/trip';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getTripSeats, createBooking, lockSeats, unlockSeats } from '@/lib/api/trips';
