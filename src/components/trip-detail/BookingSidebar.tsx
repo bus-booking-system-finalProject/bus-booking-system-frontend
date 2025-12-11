@@ -320,7 +320,7 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
         <DialogTitle
           sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <Typography variant="h6" fontWeight={700}>
+          <Typography variant="h6" component="div" fontWeight={700}>
             Xác nhận thông tin
           </Typography>
           <Button size="small" onClick={handleCloseDialog} sx={{ minWidth: 0, p: 0.5 }}>

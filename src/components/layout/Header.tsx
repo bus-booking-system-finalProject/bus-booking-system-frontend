@@ -20,6 +20,7 @@ import {
   Logout,
   AccountCircle,
   Search,
+  History,
 } from '@mui/icons-material';
 import AuthModal from './AuthModal';
 import { useNavigate, useLocation } from '@tanstack/react-router';
@@ -85,6 +86,12 @@ function Header() {
   const handleLogoClick = () => {
     setActivePage('');
     navigate({ to: '/' });
+  };
+
+  // --- NEW HANDLER FOR HISTORY ---
+  const handleNavigateHistory = () => {
+    handleCloseUserMenu();
+    navigate({ to: '/history' });
   };
 
   return (
@@ -280,6 +287,12 @@ function Header() {
                     </Typography>
                   </Box>
                   <Divider />
+
+                  {/* --- NEW HISTORY ITEM --- */}
+                  <MenuItem onClick={handleNavigateHistory}>
+                    <History sx={{ mr: 1, color: 'text.secondary' }} /> Lịch sử đặt vé
+                  </MenuItem>
+
                   <MenuItem onClick={handleCloseUserMenu}>
                     <AccountCircle sx={{ mr: 1, color: 'text.secondary' }} /> Tài khoản
                   </MenuItem>

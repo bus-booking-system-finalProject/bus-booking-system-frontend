@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearch } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // 1. Import Mutation hooks
 import {
   Box,
   Container,
@@ -25,12 +25,21 @@ import {
   LocationOn,
   Timer,
 } from '@mui/icons-material';
-import { getBookingById } from '@/lib/api/trips';
+import { getBookingById, cancelTicket } from '@/lib/api/trips'; // 2. Import cancelTicket
 import { bookingCheckoutRoute } from '@/routes/BookingCheckoutRoute';
 import Header from '@/components/layout/Header';
+import { useAuth } from '@/hooks/useAuth'; // 3. Import useAuth
+import { AxiosError } from 'axios';
+
+interface ApiErrorResponse {
+  success: boolean;
+  message: string;
+}
 
 const BookingCheckoutPage: React.FC = () => {
   const { ticketId } = useSearch({ from: bookingCheckoutRoute.id });
+  const { accessToken } = useAuth(); // 4. Get Access Token
+  const queryClient = useQueryClient();
 
   // 1. STATE: We only track "now". We don't track "timeLeft" in state anymore.
   const [now, setNow] = useState(0);
@@ -45,6 +54,20 @@ const BookingCheckoutPage: React.FC = () => {
     enabled: !!ticketId,
   });
 
+  // --- CANCEL MUTATION ---
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelTicket(ticketId),
+    onSuccess: () => {
+      alert('Hủy vé thành công!');
+      // Refresh the booking data to show "Cancelled" status immediately
+      queryClient.invalidateQueries({ queryKey: ['booking', ticketId] });
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      const msg = error.response?.data?.message || 'Không thể hủy vé. Vui lòng thử lại.';
+      alert(msg);
+    },
+  });
+
   // 2. EFFECT: Just keeps the clock ticking. No complex logic here.
   useEffect(() => {
     const interval = setInterval(() => {
@@ -55,7 +78,6 @@ const BookingCheckoutPage: React.FC = () => {
   }, []);
 
   // 3. DERIVED STATE: Calculate Expiration and TimeLeft during render.
-  // This solves the "Cascading Render" error because we don't setState here.
   const expirationTime = useMemo(() => {
     if (booking?.status === 'pending' && booking.createdAt) {
       let dateStr = booking.createdAt;
@@ -69,7 +91,7 @@ const BookingCheckoutPage: React.FC = () => {
     return null;
   }, [booking]);
 
-  // Calculate milliseconds left (Derived immediately, no waiting for useEffect)
+  // Calculate milliseconds left
   const msLeft = expirationTime ? expirationTime - now : 0;
   const timeLeft = msLeft > 0 ? msLeft : 0;
 
@@ -112,6 +134,13 @@ const BookingCheckoutPage: React.FC = () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  // --- Handler ---
+  const handleCancelClick = () => {
+    if (window.confirm('Bạn có chắc chắn muốn hủy vé này không?')) {
+      cancelMutation.mutate();
+    }
+  };
+
   if (isLoading)
     return (
       <Box sx={{ p: 10, textAlign: 'center' }}>
@@ -123,9 +152,7 @@ const BookingCheckoutPage: React.FC = () => {
 
   // Determine Logic
   const isCancelled = booking.status === 'cancelled';
-  // Check if expired based on our derived calculation
   const isExpired = timeLeft === 0 && booking.status === 'pending';
-
   const isInteractionDisabled = isCancelled || isExpired;
 
   return (
@@ -311,25 +338,49 @@ const BookingCheckoutPage: React.FC = () => {
                 </Typography>
               </Stack>
 
-              {/* ACTION BUTTON */}
-              <Button
-                variant="contained"
-                size="large"
-                fullWidth
-                disabled={isInteractionDisabled}
-                sx={{
-                  bgcolor: isInteractionDisabled ? '#e0e0e0' : '#FFC107',
-                  color: isInteractionDisabled ? '#9e9e9e' : 'black',
-                  fontWeight: 700,
-                  py: 1.5,
-                  '&:hover': {
-                    bgcolor: isInteractionDisabled ? '#e0e0e0' : '#ffb300',
-                  },
-                }}
-                onClick={() => alert('Chuyển đến cổng thanh toán VNPay/Momo...')}
-              >
-                {isCancelled ? 'Vé đã hủy' : isExpired ? 'Hết thời gian giữ vé' : 'Thanh toán ngay'}
-              </Button>
+              {/* ACTION BUTTONS */}
+              <Stack spacing={2}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  disabled={isInteractionDisabled}
+                  sx={{
+                    bgcolor: isInteractionDisabled ? '#e0e0e0' : '#FFC107',
+                    color: isInteractionDisabled ? '#9e9e9e' : 'black',
+                    fontWeight: 700,
+                    py: 1.5,
+                    '&:hover': {
+                      bgcolor: isInteractionDisabled ? '#e0e0e0' : '#ffb300',
+                    },
+                  }}
+                  onClick={() => alert('Chuyển đến cổng thanh toán VNPay/Momo...')}
+                >
+                  {isCancelled
+                    ? 'Vé đã hủy'
+                    : isExpired
+                      ? 'Hết thời gian giữ vé'
+                      : 'Thanh toán ngay'}
+                </Button>
+
+                {/* CANCEL BUTTON */}
+                {!isInteractionDisabled && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="large"
+                    fullWidth
+                    disabled={cancelMutation.isPending}
+                    onClick={handleCancelClick}
+                    sx={{
+                      fontWeight: 600,
+                      py: 1.2,
+                    }}
+                  >
+                    {cancelMutation.isPending ? 'Đang hủy...' : 'Hủy vé'}
+                  </Button>
+                )}
+              </Stack>
             </Paper>
           </Box>
         </Stack>

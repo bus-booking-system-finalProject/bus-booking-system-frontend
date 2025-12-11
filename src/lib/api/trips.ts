@@ -8,6 +8,8 @@ import type {
   LockSeatsResponse,
   UnlockSeatsRequest,
   UnlockSeatsResponse,
+  TicketHistoryResponse,
+  CancelTicketResponse,
 } from '@/types/trip';
 
 export interface SearchTripsParams {
@@ -113,5 +115,20 @@ export const lockSeats = async (data: LockSeatsRequest): Promise<LockSeatsRespon
 
 export const unlockSeats = async (data: UnlockSeatsRequest): Promise<UnlockSeatsResponse> => {
   const response = await apiClient.post<UnlockSeatsResponse>('/booking/tickets/unlock', data);
+  return response.data;
+};
+
+export const getMyTickets = async (page = 1, limit = 5): Promise<TicketHistoryResponse> => {
+  const response = await apiPrivate.get<TicketHistoryResponse>('/booking/tickets', {
+    params: { page, limit },
+  });
+  return response.data;
+};
+
+export const cancelTicket = async (ticketId: string): Promise<CancelTicketResponse> => {
+  const response = await apiPrivate.put<CancelTicketResponse>(
+    `/booking/tickets/${ticketId}/cancel`,
+    {},
+  );
   return response.data;
 };
