@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Box,
   Container,
@@ -24,7 +24,11 @@ import {
   CalendarToday,
   LocationOn,
   DirectionsBus,
+  Download,
 } from '@mui/icons-material';
+
+// 1. CHANGED: Import toPng from html-to-image instead of html2canvas
+import { toPng } from 'html-to-image';
 
 // Imports
 import { useTicketLookup } from '@/hooks/useTicketLookup';
@@ -32,6 +36,40 @@ import { formatCurrency, formatDate, formatTime } from '@/lib/utils/format';
 
 const FindTicketPage: React.FC = () => {
   const { formData, ticket, isLoading, isError, updateField, handleSubmit } = useTicketLookup();
+
+  // Refs and state
+  const ticketRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // 2. CHANGED: Refactored download handler
+  const handleDownloadImage = async () => {
+    if (!ticketRef.current || !ticket) return;
+
+    try {
+      setIsDownloading(true);
+
+      // Wait briefly for any animations or webfonts to settle
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const dataUrl = await toPng(ticketRef.current, {
+        cacheBust: true, // Ensures images are re-fetched to avoid CORS issues
+        backgroundColor: '#ffffff', // Force white background
+        pixelRatio: 2, // High resolution (equivalent to scale: 2)
+      });
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `Ve-xe-${ticket.ticketCode}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error generating ticket image:', error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <Box sx={{ bgcolor: '#f4f6f8', minHeight: '100vh', pb: 8 }}>
@@ -61,10 +99,8 @@ const FindTicketPage: React.FC = () => {
                 placeholder="Ví dụ: VXS-123456"
                 fullWidth
                 required
-                // 1. Updated state usage to ticketCode
                 value={formData.ticketCode}
                 onChange={(e) => updateField('ticketCode', e.target.value)}
-                // 2. Fixed Deprecation: Use slotProps.input instead of InputProps
                 slotProps={{
                   input: {
                     startAdornment: <ReceiptLong color="action" sx={{ mr: 1.5 }} />,
@@ -79,7 +115,6 @@ const FindTicketPage: React.FC = () => {
                 required
                 value={formData.verificationValue}
                 onChange={(e) => updateField('verificationValue', e.target.value)}
-                // 2. Fixed Deprecation here as well
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -123,10 +158,27 @@ const FindTicketPage: React.FC = () => {
             <>
               <Divider sx={{ my: 4, borderStyle: 'dashed' }} />
 
-              <Box sx={{ animation: 'fadeIn 0.5s ease-in-out' }}>
+              {/* TICKET WRAPPER */}
+              <Box
+                ref={ticketRef}
+                sx={{
+                  animation: 'fadeIn 0.5s ease-in-out',
+                  bgcolor: 'background.paper',
+                  p: { xs: 2, md: 3 },
+                  borderRadius: 2,
+                }}
+              >
                 <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography variant="h6" fontWeight={700} color="primary">
                     Kết quả tra cứu
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    color="primary.main"
+                    sx={{ opacity: 0.5 }}
+                  >
+                    VEXESIEURE
                   </Typography>
                 </Stack>
 
@@ -286,24 +338,33 @@ const FindTicketPage: React.FC = () => {
                     </Typography>
                   </Stack>
                 </Box>
-
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 4 }}>
-                  {ticket.status === 'pending' && (
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      color="warning"
-                      sx={{ fontWeight: 700 }}
-                      href={`/booking/checkout?ticketId=${ticket.ticketId}`}
-                    >
-                      Thanh toán ngay
-                    </Button>
-                  )}
-                  <Button variant="outlined" fullWidth>
-                    Tải vé điện tử
-                  </Button>
-                </Stack>
               </Box>
+
+              {/* ACTIONS */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 4 }}>
+                {ticket.status === 'pending' && (
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    color="warning"
+                    sx={{ fontWeight: 700 }}
+                    href={`/booking/checkout?ticketId=${ticket.ticketId}`}
+                  >
+                    Thanh toán ngay
+                  </Button>
+                )}
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  onClick={handleDownloadImage}
+                  disabled={isDownloading}
+                  startIcon={
+                    isDownloading ? <CircularProgress size={20} color="inherit" /> : <Download />
+                  }
+                >
+                  {isDownloading ? 'Đang tạo ảnh...' : 'Tải vé điện tử'}
+                </Button>
+              </Stack>
             </>
           )}
         </Paper>
