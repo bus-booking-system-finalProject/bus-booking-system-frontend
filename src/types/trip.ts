@@ -82,6 +82,7 @@ export interface CreateBookingRequest {
   contactEmail: string;
   contactPhone: string;
   isGuestCheckout: boolean;
+  sessionId: string;
 }
 
 // UPDATED: Matches the "GET /booking/tickets/{id}" response
@@ -118,4 +119,26 @@ export interface BookingResponse {
   lockedUntil?: string;
   createdAt: string;
   confirmedAt?: string | null;
+}
+
+export interface LockSeatsRequest {
+  tripId: string;
+  seats: string[];
+  sessionId: string;
+}
+
+export interface LockSeatsResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface UnlockSeatsRequest {
+  tripId: string;
+  seats: string[];
+  sessionId: string;
+}
+
+export interface UnlockSeatsResponse {
+  success: boolean;
+  message: string;
 }

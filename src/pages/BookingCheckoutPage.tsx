@@ -129,7 +129,7 @@ const BookingCheckoutPage: React.FC = () => {
   const isInteractionDisabled = isCancelled || isExpired;
 
   return (
-    <Box sx={{ bgcolor: '#f4f6f8', minHeight: '100vh', py: 4, pb: 10 }}>
+    <Box sx={{ bgcolor: '#f4f6f8', minHeight: '100vh', pb: 10 }}>
       <Header />
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Button startIcon={<ArrowBack />} onClick={() => window.history.back()} sx={{ mb: 2 }}>

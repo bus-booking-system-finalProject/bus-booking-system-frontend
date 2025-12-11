@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Paper,
   Box,
@@ -15,14 +15,15 @@ import {
   DialogActions,
   TextField,
 } from '@mui/material';
-import { DirectionsBus, Close } from '@mui/icons-material';
+import { DirectionsBus, Close, AccessTime } from '@mui/icons-material';
 import { type Trip, type Seat } from '@/types/trip';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getTripSeats, createBooking } from '@/lib/api/trips';
+import { getTripSeats, createBooking, lockSeats, unlockSeats } from '@/lib/api/trips';
 import { useNavigate } from '@tanstack/react-router';
 import SeatMap from './SeatMap';
 import { useAuth } from '@/hooks/useAuth';
 import { AxiosError } from 'axios';
+import { getSessionId } from '@/utils/session';
 
 interface ApiErrorResponse {
   success: boolean;
@@ -31,17 +32,18 @@ interface ApiErrorResponse {
 
 const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
   const navigate = useNavigate();
-  // State for selected seats
-  const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const { isLoggedIn } = useAuth();
-  const [openDialog, setOpenDialog] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-  });
 
-  // 1. Fetch Seat Data
+  // State
+  const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+
+  // State for Countdown Timer
+  const [lockExpirationTime, setLockExpirationTime] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  // 1. Fetch Seats
   const {
     data: seatLayout,
     isLoading,
@@ -49,100 +51,162 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
   } = useQuery({
     queryKey: ['trip-seats', trip.tripId],
     queryFn: () => getTripSeats(trip.tripId),
-    enabled: !!trip.tripId, // Only fetch if ID exists
-    retry: 1, // Don't retry forever if it fails
+    enabled: !!trip.tripId,
+    retry: 1,
   });
 
-  // 3. Setup Mutation for Locking Seats
-  const mutation = useMutation({
+  // --- MUTATION 1: LOCK SEATS (First Step) ---
+  const lockMutation = useMutation({
+    mutationFn: lockSeats,
+    onSuccess: () => {
+      // 1. Set expiration time (Current time + 10 minutes)
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      setLockExpirationTime(expiresAt);
+
+      // 2. Open the popup to enter info
+      setOpenDialog(true);
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      const msg = error.response?.data?.message || 'Không thể giữ ghế. Vui lòng thử lại.';
+      alert(msg);
+    },
+  });
+
+  // --- MUTATION 2: CREATE BOOKING (Second Step) ---
+  const unlockMutation = useMutation({
+    mutationFn: unlockSeats,
+    onError: (error) => {
+      // We generally fail silently here or just log it,
+      // because the user is canceling anyway.
+      console.error('Failed to unlock seats:', error);
+    },
+  });
+
+  // --- MUTATION 3: CREATE BOOKING (Third Step) ---
+  const bookingMutation = useMutation({
     mutationFn: createBooking,
     onSuccess: (data) => {
-      // Navigate to Checkout Page with the new Ticket ID
       navigate({
         to: '/booking/checkout',
-        search: {
-          ticketId: data.ticketId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any, // Cast is needed until you update BookingCheckoutRoute schema
+        // FIX: Replaced 'as any' with specific type to satisfy linter
+        search: { ticketId: data.ticketId } as { ticketId: string },
       });
     },
-    // FIX: Use generic AxiosError<ApiErrorResponse> instead of 'any'
     onError: (error: AxiosError<ApiErrorResponse>) => {
-      console.error(error);
-
-      // Now TypeScript knows 'error.response' has a specific shape
-      if (error.response?.status === 401) {
-        alert('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
-      } else {
-        // Safe access to .data.message
-        const msg = error.response?.data?.message || 'Không thể giữ ghế. Vui lòng thử lại.';
-        alert(msg);
-      }
+      const msg = error.response?.data?.message || 'Đặt vé thất bại. Vui lòng thử lại.';
+      alert(msg);
     },
   });
 
-  // 2. Handle Seat Toggle
+  // --- TIMER LOGIC ---
+  useEffect(() => {
+    if (!openDialog || !lockExpirationTime) return;
+
+    // Update time immediately
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = lockExpirationTime - now;
+      setTimeLeft(diff > 0 ? diff : 0);
+    };
+
+    updateTimer(); // Initial call
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [openDialog, lockExpirationTime]);
+
+  // Helper: Format MM:SS
+  const formatCountdown = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // --- HANDLERS ---
+
   const handleSeatToggle = (seat: Seat) => {
     setSelectedSeats((prev) => {
       const exists = prev.find((s) => s.seatId === seat.seatId);
-      if (exists) {
-        return prev.filter((s) => s.seatId !== seat.seatId);
-      } else {
-        if (prev.length >= 5) {
-          alert('Bạn chỉ được chọn tối đa 5 ghế.');
-          return prev;
-        }
-        return [...prev, seat];
+      if (exists) return prev.filter((s) => s.seatId !== seat.seatId);
+      if (prev.length >= 5) {
+        alert('Bạn chỉ được chọn tối đa 5 ghế.');
+        return prev;
       }
+      return [...prev, seat];
     });
   };
 
-  // 3. Handle "Continue" Click -> OPEN DIALOG
-  const handleOpenConfirmDialog = () => {
+  // Step 1: Click "Tiếp tục" -> Call Lock API
+  const handleContinueClick = () => {
     if (selectedSeats.length === 0) return;
 
-    // Pre-fill form with user data from Auth Context
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-    });
+    const sessionId = getSessionId();
+    const seatCodes = selectedSeats.map((s) => s.seatCode);
 
-    setOpenDialog(true);
+    lockMutation.mutate({
+      tripId: trip.tripId,
+      seats: seatCodes,
+      sessionId: sessionId,
+    });
   };
 
+  const handleCloseDialog = () => {
+    // 1. Close UI immediately
+    setOpenDialog(false);
+    setLockExpirationTime(null);
+
+    // 2. Call API to unlock seats
+    // Only unlock if we actually have selected seats (sanity check)
+    if (selectedSeats.length > 0) {
+      const sessionId = getSessionId();
+      const seatCodes = selectedSeats.map((s) => s.seatCode);
+
+      unlockMutation.mutate({
+        tripId: trip.tripId,
+        seats: seatCodes,
+        sessionId: sessionId,
+      });
+    }
+  };
+
+  // Step 2: Click "Xác nhận" -> Call Booking API
   const handleSubmitBooking = () => {
-    // Basic validation for guests (optional but recommended)
     if (!formData.name || !formData.phone || !formData.email) {
       alert('Vui lòng điền đầy đủ thông tin liên hệ.');
       return;
     }
 
-    const seatCodes = selectedSeats.map((s) => s.seatCode);
-    const isGuest = !isLoggedIn; // Determine if guest checkout
+    // Check if lock expired
+    if (timeLeft <= 0) {
+      alert('Thời gian giữ ghế đã hết. Vui lòng chọn lại.');
+      setOpenDialog(false);
+      window.location.reload(); // Refresh to reset state
+      return;
+    }
 
-    mutation.mutate({
+    const sessionId = getSessionId();
+    const seatCodes = selectedSeats.map((s) => s.seatCode);
+    const isGuest = !isLoggedIn;
+
+    bookingMutation.mutate({
       tripId: trip.tripId,
       seats: seatCodes,
       contactName: formData.name,
       contactEmail: formData.email,
       contactPhone: formData.phone,
-      isGuestCheckout: isGuest, // Pass the flag to backend
+      isGuestCheckout: isGuest,
+      sessionId: sessionId, // Send Session ID
     });
   };
 
-  // 3. Calculate Total
-  const totalPrice = useMemo(() => {
-    return selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
-  }, [selectedSeats]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
-
-  // 4. Calculate Seat Status counts
+  const totalPrice = useMemo(
+    () => selectedSeats.reduce((sum, s) => sum + s.price, 0),
+    [selectedSeats],
+  );
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
   const availableCount = seatLayout?.seats?.filter((s) => s.status === 'available').length || 0;
-  const totalCount = seatLayout?.seats?.length || 0;
 
   return (
     <>
@@ -154,10 +218,9 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
           bgcolor: 'white',
           position: 'sticky',
           top: 24,
-          border: '1px solid #f0f0f0',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: 'calc(100vh - 40px)', // Limit height
+          maxHeight: 'calc(100vh - 40px)',
         }}
       >
         <Typography variant="h6" fontWeight={700} gutterBottom>
@@ -166,30 +229,22 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
         <Divider sx={{ my: 2 }} />
 
         <Stack spacing={2} sx={{ mb: 2 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" justifyContent="space-between">
             <Typography color="text.secondary" variant="body2">
               Trạng thái xe
             </Typography>
-            <Chip
-              label="Đang mở bán"
-              color="success"
-              size="small"
-              variant="filled"
-              sx={{ fontWeight: 600 }}
-            />
+            <Chip label="Đang mở bán" color="success" size="small" variant="filled" />
           </Stack>
-
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" justifyContent="space-between">
             <Typography color="text.secondary" variant="body2">
               Chỗ trống
             </Typography>
             <Typography fontWeight={700} color={availableCount < 5 ? 'error.main' : 'success.main'}>
-              {availableCount} / {totalCount} ghế
+              {availableCount} / {seatLayout?.seats?.length || 0} ghế
             </Typography>
           </Stack>
         </Stack>
 
-        {/* --- SEAT MAP AREA --- */}
         <Box
           sx={{
             flex: 1,
@@ -198,144 +253,98 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
             mb: 2,
             bgcolor: '#f8f9fa',
             borderRadius: 2,
-            border: '1px solid #eee',
             p: 1,
             display: 'flex',
+            justifyContent: isLoading ? 'center' : 'flex-start',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: isLoading ? 'center' : 'flex-start',
           }}
         >
           {isLoading ? (
-            <Stack alignItems="center" spacing={2}>
-              <CircularProgress size={30} />
-              <Typography variant="caption" color="text.secondary">
-                Đang tải sơ đồ...
-              </Typography>
-            </Stack>
+            <CircularProgress />
           ) : isError ? (
-            <Stack alignItems="center" spacing={1} sx={{ p: 2, textAlign: 'center' }}>
-              <Alert severity="error" sx={{ width: '100%', fontSize: '0.8rem' }}>
-                Không thể tải sơ đồ ghế.
-              </Alert>
-              <Button size="small" onClick={() => window.location.reload()}>
-                Thử lại
-              </Button>
-            </Stack>
-          ) : seatLayout ? (
+            <Alert severity="error">Lỗi tải ghế</Alert>
+          ) : (
             <SeatMap
-              layout={seatLayout}
+              layout={seatLayout!}
               selectedSeats={selectedSeats}
               onSeatToggle={handleSeatToggle}
             />
-          ) : (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <DirectionsBus sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
-              <Typography variant="body2" color="text.secondary">
-                Chưa có dữ liệu ghế.
-              </Typography>
-            </Box>
           )}
         </Box>
 
-        {/* --- FOOTER SUMMARY --- */}
         <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid #f0f0f0' }}>
           <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
               Ghế đã chọn:
             </Typography>
-            <Typography
-              variant="body2"
-              fontWeight={700}
-              sx={{ maxWidth: '60%', textAlign: 'right' }}
-            >
+            <Typography variant="body2" fontWeight={700}>
               {selectedSeats.length > 0
                 ? selectedSeats.map((s) => s.seatCode).join(', ')
                 : 'Chưa chọn'}
             </Typography>
           </Stack>
-
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
             <Typography variant="body1" fontWeight={600}>
               Tổng cộng:
             </Typography>
-            <Stack alignItems="flex-end">
-              <Typography variant="h6" fontWeight={700} color="primary.main">
-                {formatCurrency(totalPrice)}
-              </Typography>
-              {selectedSeats.length > 0 && (
-                <Typography variant="caption" color="text.secondary">
-                  {selectedSeats.length} vé
-                </Typography>
-              )}
-            </Stack>
+            <Typography variant="h6" fontWeight={700} color="primary.main">
+              {formatCurrency(totalPrice)}
+            </Typography>
           </Stack>
 
           <Button
             variant="contained"
             fullWidth
             size="large"
-            disabled={selectedSeats.length === 0}
-            sx={{
-              bgcolor: '#FFC107',
-              color: 'black',
-              fontWeight: 700,
-              textTransform: 'none',
-              py: 1.5,
-              fontSize: '1rem',
-              boxShadow: 'none',
-              '&:hover': { bgcolor: '#ffca2c' },
-              '&.Mui-disabled': { bgcolor: '#e0e0e0', color: '#9e9e9e' },
-            }}
-            onClick={handleOpenConfirmDialog}
+            disabled={selectedSeats.length === 0 || lockMutation.isPending}
+            sx={{ bgcolor: '#FFC107', color: 'black', fontWeight: 700, py: 1.5 }}
+            onClick={handleContinueClick}
           >
-            {selectedSeats.length === 0 ? 'Vui lòng chọn ghế' : 'Tiếp tục'}
+            {lockMutation.isPending
+              ? 'Đang giữ ghế...'
+              : selectedSeats.length === 0
+                ? 'Vui lòng chọn ghế'
+                : 'Tiếp tục'}
           </Button>
-
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', textAlign: 'center', mt: 2 }}
-          >
-            Hủy miễn phí trước 24h giờ đi
-          </Typography>
         </Box>
       </Paper>
 
-      {/* --- CONFIRMATION DIALOG (POPUP) --- */}
+      {/* --- POPUP DIALOG --- */}
       <Dialog
         open={openDialog}
-        onClose={() => !mutation.isPending && setOpenDialog(false)}
+        onClose={handleCloseDialog} // Trigger unlock on Backdrop click / Escape
         maxWidth="xs"
         fullWidth
       >
         <DialogTitle
           sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <Typography variant="h6" component="div" fontWeight={700}>
+          <Typography variant="h6" fontWeight={700}>
             Xác nhận thông tin
           </Typography>
-          <Button
-            size="small"
-            onClick={() => setOpenDialog(false)}
-            disabled={mutation.isPending}
-            sx={{ minWidth: 0, p: 0.5, color: 'text.secondary' }}
-          >
+          <Button size="small" onClick={handleCloseDialog} sx={{ minWidth: 0, p: 0.5 }}>
             <Close />
           </Button>
         </DialogTitle>
 
         <DialogContent dividers>
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
+          {/* COUNTDOWN TIMER ALERT */}
+          <Alert severity="warning" icon={<AccessTime />} sx={{ mb: 3, alignItems: 'center' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" width="100%">
+              <Typography variant="body2">Hoàn tất trong:</Typography>
+              <Typography variant="h6" component="div" fontWeight={700} color="warning.dark">
+                {formatCountdown(timeLeft)}
+              </Typography>
+            </Stack>
+          </Alert>
+
+          <Stack spacing={2.5}>
             {!isLoggedIn && (
-              <Alert severity="info" sx={{ fontSize: '0.85rem' }}>
+              <Alert severity="info">
                 Bạn đang đặt vé với tư cách là <b>Khách</b>.
               </Alert>
             )}
-
-            <Alert severity="success" icon={false} sx={{ fontSize: '0.85rem', bgcolor: '#e8f5e9' }}>
-              Ghế đang chọn: <b>{selectedSeats.map((s) => s.seatCode).join(', ')}</b>
-            </Alert>
 
             <TextField
               label="Họ và tên"
@@ -343,7 +352,6 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
               size="small"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              error={!formData.name && mutation.isError} // Simple validation visual
             />
             <TextField
               label="Số điện thoại"
@@ -359,6 +367,7 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
+
             <Typography variant="caption" color="text.secondary">
               *Thông tin này sẽ được dùng để gửi vé điện tử.
             </Typography>
@@ -366,25 +375,16 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
         </DialogContent>
 
         <DialogActions sx={{ p: 2 }}>
-          <Button
-            onClick={() => setOpenDialog(false)}
-            disabled={mutation.isPending}
-            color="inherit"
-          >
+          <Button onClick={handleCloseDialog} color="inherit">
             Hủy
           </Button>
           <Button
             onClick={handleSubmitBooking}
             variant="contained"
-            disabled={mutation.isPending}
-            sx={{
-              bgcolor: '#FFC107',
-              color: 'black',
-              fontWeight: 700,
-              px: 3,
-            }}
+            disabled={bookingMutation.isPending || timeLeft === 0}
+            sx={{ bgcolor: '#FFC107', color: 'black', fontWeight: 700, px: 3 }}
           >
-            {mutation.isPending ? 'Đang xử lý...' : 'Xác nhận đặt vé'}
+            {bookingMutation.isPending ? 'Đang xử lý...' : 'Xác nhận đặt vé'}
           </Button>
         </DialogActions>
       </Dialog>
