@@ -13,6 +13,7 @@ import { tripDetailRoute } from './routes/tripDetailRoute.tsx';
 import { bookingCheckoutRoute } from './routes/BookingCheckoutRoute.tsx';
 import { findTicketRoute } from './routes/FindTicketRoute.tsx';
 import { historyRoute } from './routes/HistoryRoute.tsx';
+import { analyticsRoute } from './routes/admin/AnalyticsRoute.tsx';
 
 export const routeTree = rootRoute.addChildren([
   searchResultRoute,
@@ -24,5 +25,12 @@ export const routeTree = rootRoute.addChildren([
     findTicketRoute,
     historyRoute,
   ]),
-  adminRoute.addChildren([dashboardRoute, tripRoute, routeRoute, operatorRoute, busRoute]),
+  adminRoute.addChildren([
+    dashboardRoute,
+    tripRoute,
+    routeRoute,
+    operatorRoute,
+    busRoute,
+    analyticsRoute,
+  ]),
 ]);
