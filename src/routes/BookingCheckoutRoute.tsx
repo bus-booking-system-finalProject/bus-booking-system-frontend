@@ -7,6 +7,11 @@ import { z } from 'zod';
 // UPDATED: Now we only need the ticketId in the URL
 const checkoutSearchSchema = z.object({
   ticketId: z.string(),
+  code: z.string().optional(),
+  id: z.string().optional(),
+  cancel: z.boolean().optional(),
+  status: z.string().optional(),
+  orderCode: z.number().optional(),
 });
 
 export const bookingCheckoutRoute = createRoute({

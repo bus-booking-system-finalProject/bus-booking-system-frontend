@@ -11,6 +11,7 @@ import {
   Stack,
   Alert,
   CircularProgress,
+  Snackbar,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -24,11 +25,13 @@ import {
   Email,
   LocationOn,
   Timer,
+  Payment,
 } from '@mui/icons-material';
-import { getBookingById, cancelTicket } from '@/lib/api/trips'; // 2. Import cancelTicket
+import { getBookingById, cancelTicket } from '@/lib/api/trips';
+import { createPaymentLink } from '@/lib/api/PaymentApi';
 import { bookingCheckoutRoute } from '@/routes/BookingCheckoutRoute';
 import Header from '@/components/layout/Header';
-import { useAuth } from '@/hooks/useAuth'; // 3. Import useAuth
+import { useAuth } from '@/hooks/useAuth';
 import { AxiosError } from 'axios';
 
 interface ApiErrorResponse {
@@ -37,12 +40,13 @@ interface ApiErrorResponse {
 }
 
 const BookingCheckoutPage: React.FC = () => {
-  const { ticketId } = useSearch({ from: bookingCheckoutRoute.id });
+  const { ticketId, code, status, cancel } = useSearch({ from: bookingCheckoutRoute.id });
   const { accessToken } = useAuth(); // 4. Get Access Token
   const queryClient = useQueryClient();
 
   // 1. STATE: We only track "now". We don't track "timeLeft" in state anymore.
   const [now, setNow] = useState(0);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   const {
     data: booking,
@@ -52,6 +56,32 @@ const BookingCheckoutPage: React.FC = () => {
     queryKey: ['booking', ticketId],
     queryFn: () => getBookingById(ticketId),
     enabled: !!ticketId,
+  });
+
+  // --- PAYMENT MUTATION ---
+  const paymentMutation = useMutation({
+    mutationFn: async () => {
+      // Construct the return URL to be the current page
+      const currentUrl = `${window.location.origin}${window.location.pathname}?ticketId=${ticketId}`;
+
+      return createPaymentLink({
+        ticketId,
+        returnUrl: currentUrl,
+        cancelUrl: currentUrl,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success && data.checkoutUrl) {
+        // Redirect user to PayOS
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert('Không thể tạo liên kết thanh toán. Vui lòng thử lại.');
+      }
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      const msg = error.response?.data?.message || 'Lỗi khi tạo thanh toán.';
+      alert(msg);
+    },
   });
 
   // --- CANCEL MUTATION ---
@@ -67,6 +97,25 @@ const BookingCheckoutPage: React.FC = () => {
       alert(msg);
     },
   });
+
+  // --- HANDLE PAYMENT RETURN ---
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    // If we have returned from payment gateway with success code
+    if (code === '00' && status === 'PAID') {
+      timer = setTimeout(() => {
+        setShowSuccessToast(true);
+        queryClient.invalidateQueries({ queryKey: ['booking', ticketId] });
+      }, 0);
+    } else if (cancel === true) {
+      // Handle cancelled payment if necessary
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [code, status, cancel, ticketId, queryClient]);
 
   // 2. EFFECT: Just keeps the clock ticking. No complex logic here.
   useEffect(() => {
@@ -141,6 +190,10 @@ const BookingCheckoutPage: React.FC = () => {
     }
   };
 
+  const handlePaymentClick = () => {
+    paymentMutation.mutate();
+  };
+
   if (isLoading)
     return (
       <Box sx={{ p: 10, textAlign: 'center' }}>
@@ -151,6 +204,7 @@ const BookingCheckoutPage: React.FC = () => {
   if (isError || !booking) return <Alert severity="error">Không tìm thấy thông tin vé.</Alert>;
 
   // Determine Logic
+  const isPaid = booking.status === 'confirmed';
   const isCancelled = booking.status === 'cancelled';
   const isExpired = timeLeft === 0 && booking.status === 'pending';
   const isInteractionDisabled = isCancelled || isExpired;
@@ -174,28 +228,34 @@ const BookingCheckoutPage: React.FC = () => {
               <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
                 {isCancelled ? (
                   <Cancel color="error" sx={{ fontSize: 40 }} />
-                ) : (
+                ) : isPaid ? (
                   <CheckCircle color="success" sx={{ fontSize: 40 }} />
+                ) : (
+                  <Payment color="warning" sx={{ fontSize: 40 }} />
                 )}
 
                 <Box>
                   <Typography
                     variant="h6"
                     fontWeight={700}
-                    color={isCancelled ? 'error.main' : 'success.main'}
+                    color={isCancelled ? 'error.main' : isPaid ? 'success.main' : 'warning.main'}
                   >
-                    {isCancelled ? 'Vé đã bị hủy' : 'Đặt chỗ thành công!'}
+                    {isCancelled
+                      ? 'Vé đã bị hủy'
+                      : isPaid
+                        ? 'Thanh toán thành công'
+                        : 'Chờ thanh toán'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Mã vé: <b>{booking.ticketCode}</b> • Trạng thái:{' '}
                     <span
                       style={{
-                        color: isCancelled ? '#d32f2f' : '#2e7d32',
+                        color: isCancelled ? '#d32f2f' : isPaid ? '#2e7d32' : '#ed6c02',
                         fontWeight: 'bold',
                         textTransform: 'capitalize',
                       }}
                     >
-                      {isCancelled ? 'Đã hủy' : 'Chờ thanh toán'}
+                      {isCancelled ? 'Đã hủy' : isPaid ? 'Đã thanh toán' : 'Chờ thanh toán'}
                     </span>
                   </Typography>
                 </Box>
@@ -225,7 +285,11 @@ const BookingCheckoutPage: React.FC = () => {
             {/* Alert / Countdown Area */}
             {isCancelled ? (
               <Alert severity="error" icon={<Cancel />}>
-                Vé này đã bị hủy do người dùng hủy hoặc quá hạn thanh toán.
+                Vé này đã bị hủy.
+              </Alert>
+            ) : isPaid ? (
+              <Alert severity="success" icon={<CheckCircle />}>
+                Bạn đã thanh toán vé thành công. Chúc bạn có một chuyến đi vui vẻ!
               </Alert>
             ) : (
               <Alert
@@ -340,30 +404,39 @@ const BookingCheckoutPage: React.FC = () => {
 
               {/* ACTION BUTTONS */}
               <Stack spacing={2}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  fullWidth
-                  disabled={isInteractionDisabled}
-                  sx={{
-                    bgcolor: isInteractionDisabled ? '#e0e0e0' : '#FFC107',
-                    color: isInteractionDisabled ? '#9e9e9e' : 'black',
-                    fontWeight: 700,
-                    py: 1.5,
-                    '&:hover': {
-                      bgcolor: isInteractionDisabled ? '#e0e0e0' : '#ffb300',
-                    },
-                  }}
-                  onClick={() => alert('Chuyển đến cổng thanh toán VNPay/Momo...')}
-                >
-                  {isCancelled
-                    ? 'Vé đã hủy'
-                    : isExpired
-                      ? 'Hết thời gian giữ vé'
-                      : 'Thanh toán ngay'}
-                </Button>
+                {!isPaid && !isCancelled && !isExpired && (
+                  <Button
+                    variant="contained"
+                    size="large"
+                    fullWidth
+                    disabled={paymentMutation.isPending}
+                    onClick={handlePaymentClick}
+                    sx={{
+                      bgcolor: '#FFC107',
+                      color: 'black',
+                      fontWeight: 700,
+                      py: 1.5,
+                      '&:hover': {
+                        bgcolor: '#ffb300',
+                      },
+                    }}
+                  >
+                    {paymentMutation.isPending ? 'Đang tạo thanh toán...' : 'Thanh toán ngay'}
+                  </Button>
+                )}
 
-                {/* CANCEL BUTTON */}
+                {isPaid && (
+                  <Button variant="contained" color="success" fullWidth size="large" disabled>
+                    Đã thanh toán
+                  </Button>
+                )}
+
+                {(isExpired || isCancelled) && (
+                  <Button variant="contained" disabled fullWidth size="large">
+                    {isCancelled ? 'Vé đã hủy' : 'Hết thời gian'}
+                  </Button>
+                )}
+
                 {!isInteractionDisabled && (
                   <Button
                     variant="outlined"
@@ -385,6 +458,18 @@ const BookingCheckoutPage: React.FC = () => {
           </Box>
         </Stack>
       </Container>
+
+      {/* SUCCESS TOAST */}
+      <Snackbar
+        open={showSuccessToast}
+        autoHideDuration={6000}
+        onClose={() => setShowSuccessToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setShowSuccessToast(false)} severity="success" sx={{ width: '100%' }}>
+          Thanh toán thành công!
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
