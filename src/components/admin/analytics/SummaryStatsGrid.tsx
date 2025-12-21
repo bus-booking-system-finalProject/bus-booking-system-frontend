@@ -7,6 +7,7 @@ import {
   PendingActions,
   Cancel,
   ConfirmationNumberOutlined,
+  CheckCircle, // Import icon for Completed
 } from '@mui/icons-material';
 import { type AnalyticsSummary } from '@/types/analytics';
 
@@ -72,48 +73,67 @@ export const SummaryStatsGrid: React.FC<{ data?: AnalyticsSummary }> = ({ data }
       sx={{
         display: 'grid',
         gridTemplateColumns: {
-          xs: '1fr', // 1 card per row mobile
-          sm: '1fr 1fr', // 2 cards per row tablet
-          lg: 'repeat(5, 1fr)', // 5 cards per row desktop
+          xs: '1fr', // 1 card per row (Mobile)
+          sm: '1fr 1fr', // 2 cards per row (Tablet)
+          md: 'repeat(3, 1fr)', // 3 cards per row (Desktop - 2 rows total)
+          xl: 'repeat(6, 1fr)', // 6 cards per row (Wide Screens - 1 row total)
         },
         gap: 3,
         mb: 4,
       }}
     >
+      {/* 1. DOANH THU */}
       <StatCard
         title="Doanh thu"
         value={formatCurrency(data.totalRevenue)}
         icon={<AttachMoney fontSize="large" />}
-        color="#10B981"
-        bgColor="#D1FAE5"
+        color="#10B981" // Emerald 500
+        bgColor="#D1FAE5" // Emerald 100
       />
+
+      {/* 2. TỔNG VÉ */}
       <StatCard
         title="Tổng vé"
         value={data.totalTickets}
         icon={<ConfirmationNumber fontSize="large" />}
-        color="#3B82F6"
-        bgColor="#DBEAFE"
+        color="#3B82F6" // Blue 500
+        bgColor="#DBEAFE" // Blue 100
       />
+
+      {/* 3. ĐÃ THANH TOÁN (Confirmed) */}
       <StatCard
         title="Đã thanh toán"
         value={data.confirmedTickets}
         icon={<ConfirmationNumberOutlined fontSize="large" />}
-        color="#6366F1"
-        bgColor="#E0E7FF"
+        color="#6366F1" // Indigo 500
+        bgColor="#E0E7FF" // Indigo 100
       />
+
+      {/* 4. ĐÃ HOÀN THÀNH (Completed) - NEW */}
+      <StatCard
+        title="Đã hoàn thành"
+        value={data.completedTickets}
+        icon={<CheckCircle fontSize="large" />}
+        color="#06B6D4" // Cyan 500
+        bgColor="#CFFAFE" // Cyan 100
+      />
+
+      {/* 5. CHỜ THANH TOÁN (Pending) */}
       <StatCard
         title="Chờ thanh toán"
         value={data.pendingTickets}
         icon={<PendingActions fontSize="large" />}
-        color="#F59E0B"
-        bgColor="#FEF3C7"
+        color="#F59E0B" // Amber 500
+        bgColor="#FEF3C7" // Amber 100
       />
+
+      {/* 6. ĐÃ HỦY (Cancelled) */}
       <StatCard
         title="Đã hủy"
         value={data.cancelledTickets}
         icon={<Cancel fontSize="large" />}
-        color="#EF4444"
-        bgColor="#FEE2E2"
+        color="#EF4444" // Red 500
+        bgColor="#FEE2E2" // Red 100
       />
     </Box>
   );
