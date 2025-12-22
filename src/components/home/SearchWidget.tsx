@@ -237,7 +237,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
     renderInput={(params) => (
       <TextField
         {...params}
-        placeholder="Chọn tỉnh thành..."
+        placeholder="Chọn tỉnh..."
         variant="standard"
         InputProps={{
           ...params.InputProps,
@@ -253,7 +253,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
             height: '100%',
             py: 1,
             fontWeight: 700,
-            fontSize: '1rem',
+            fontSize: '1.0rem',
             color: value ? 'text.primary' : 'text.disabled',
           },
           '& input': {
@@ -267,7 +267,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
       const { key, ...otherProps } = props;
       return (
         <Box component="li" key={key} {...otherProps}>
-          <LocationOn sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+          <LocationOn sx={{ mr: 1, color: 'text.secondary', fontSize: 15 }} />
           {option}
         </Box>
       );
