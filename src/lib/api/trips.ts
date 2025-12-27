@@ -11,6 +11,7 @@ import type {
   UnlockSeatsResponse,
   TicketHistoryResponse,
   CancelTicketResponse,
+  OperatorReviewsResponse,
 } from '@/types/TripTypes';
 
 export interface SearchTripsParams {
@@ -138,4 +139,19 @@ export const cancelTicket = async (ticketId: string): Promise<CancelTicketRespon
     {},
   );
   return response.data;
+};
+
+export const getOperatorReviews = async (
+  operatorId: string,
+  page = 1,
+  limit = 5,
+): Promise<OperatorReviewsResponse> => {
+  // Using apiClient because authentication is not required for viewing reviews
+  const response = await apiClient.get<{ success: boolean; data: OperatorReviewsResponse }>(
+    `/reviews/${operatorId}`,
+    {
+      params: { page, limit },
+    },
+  );
+  return response.data.data;
 };

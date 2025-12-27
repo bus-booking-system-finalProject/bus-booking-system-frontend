@@ -203,3 +203,24 @@ export interface StopPoint {
   type: 'PICKUP' | 'DROPOFF';
   time: string; // ISO string
 }
+
+export interface Review {
+  id: string;
+  tripId: string;
+  rating: number;
+  comment: string;
+  userEmail: string;
+  submittedAt: string;
+}
+
+export interface OperatorReviewsResponse {
+  averageRating: number;
+  totalReviews: number;
+  reviews: Review[];
+  pagination: {
+    total: number;
+    limit: number;
+    totalPages: number;
+    page: number;
+  };
+}

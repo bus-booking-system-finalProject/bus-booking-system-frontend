@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -14,9 +14,13 @@ import {
   Grid,
   Alert,
   CircularProgress,
+  Pagination,
+  Rating,
 } from '@mui/material';
 import { LocationOn, FiberManualRecord, Star } from '@mui/icons-material';
-import type { Trip, Seat, SeatLayout } from '../../types/TripTypes';
+import { useQuery } from '@tanstack/react-query';
+import { getOperatorReviews } from '@/lib/api/trips';
+import type { Trip, Seat, SeatLayout, OperatorReviewsResponse } from '../../types/TripTypes';
 import { formatCurrency, formatTime, calculateDuration } from '../../lib/utils/format';
 import SeatMap from './SeatMap';
 import { PointSelector } from '../booking/PointSelector';
@@ -29,6 +33,96 @@ const mapBusTypeToLabel = (type?: string) => {
     limousine: 'Limousine',
   };
   return map[type.toLowerCase()] || type;
+};
+
+// --- Small internal component to fetch & render operator reviews with pagination ---
+const REVIEW_PAGE_LIMIT = 20; // default limit used in the backend example; adjust if desired
+
+interface OperatorReviewsBlockProps {
+  operatorId: string;
+  isOpen: boolean;
+}
+
+const OperatorReviewsBlock: React.FC<OperatorReviewsBlockProps> = ({ operatorId, isOpen }) => {
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isError } = useQuery<OperatorReviewsResponse>({
+    queryKey: ['operator-reviews', operatorId, page, REVIEW_PAGE_LIMIT],
+    queryFn: () => getOperatorReviews(operatorId, page, REVIEW_PAGE_LIMIT),
+    enabled: isOpen && !!operatorId,
+  });
+
+  if (!isOpen) return null;
+
+  if (isLoading) {
+    return (
+      <Box sx={{ mt: 1 }}>
+        <CircularProgress size={18} />
+      </Box>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <Box sx={{ mt: 1 }}>
+        <Alert severity="error">Không tải được đánh giá.</Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ mt: 1 }}>
+      <Stack spacing={1}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Rating value={data.averageRating} precision={0.1} readOnly size="small" />
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {data.averageRating?.toFixed(1)}/5
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            ({data.totalReviews} đánh giá)
+          </Typography>
+        </Box>
+
+        {/* Reviews list */}
+        {data.reviews && data.reviews.length > 0 ? (
+          <Box>
+            {data.reviews.map((r) => (
+              <Box key={r.id} sx={{ mb: 1, p: 1, bgcolor: 'white', borderRadius: 1 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Rating value={r.rating} readOnly size="small" />
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(r.submittedAt).toLocaleString('vi-VN')}
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  {r.comment}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {r.userEmail}
+                </Typography>
+              </Box>
+            ))}
+
+            {/* Pagination */}
+            {data.pagination && data.pagination.totalPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                <Pagination
+                  count={data.pagination.totalPages}
+                  page={page}
+                  onChange={(_, v) => setPage(v)}
+                  size="small"
+                />
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Typography variant="caption" color="text.secondary">
+            Chưa có đánh giá.
+          </Typography>
+        )}
+      </Stack>
+    </Box>
+  );
 };
 
 interface TripCardProps {
@@ -355,6 +449,14 @@ const TripCard: React.FC<TripCardProps> = ({
                       <Typography fontWeight="bold">
                         ⭐ {trip.operator.ratings?.overall || 4.5}/5
                       </Typography>
+                      {/* --- Operator Reviews (fetched when details open) --- */}
+                      <Box sx={{ mt: 1 }}>
+                        {/* Reviews state (fetched when details are open) */}
+                        <OperatorReviewsBlock
+                          operatorId={trip.operator.id}
+                          isOpen={isDetailsOpen}
+                        />
+                      </Box>
                     </Box>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
