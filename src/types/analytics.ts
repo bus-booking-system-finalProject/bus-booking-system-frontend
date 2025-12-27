@@ -5,6 +5,7 @@ export interface AnalyticsSummary {
   confirmedTickets: number;
   pendingTickets: number;
   cancelledTickets: number;
+  completedTickets: number;
   totalRevenue: number;
 }
 
