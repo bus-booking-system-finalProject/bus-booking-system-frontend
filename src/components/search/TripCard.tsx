@@ -1,52 +1,25 @@
 import React from 'react';
 import {
+  Box,
   Card,
   CardContent,
   Typography,
-  Box,
   Button,
+  Divider,
+  Collapse,
+  Tabs,
+  Tab,
   Chip,
   Stack,
-  Divider,
-  Tooltip,
+  Grid,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
-import {
-  DirectionsBus,
-  LocationOn,
-  FiberManualRecord,
-  Star,
-  Wifi,
-  AcUnit,
-  LocalDrink,
-  VerifiedUser,
-} from '@mui/icons-material';
-import { type Trip } from '@/types/trip';
-import { useNavigate } from '@tanstack/react-router';
-
-// --- HELPER FUNCTIONS ---
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(amount);
-};
-
-const formatTime = (isoString: string) => {
-  return new Date(isoString).toLocaleTimeString('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-};
-
-const calculateDuration = (start: string, end: string) => {
-  const startTime = new Date(start).getTime();
-  const endTime = new Date(end).getTime();
-  const diffMs = endTime - startTime;
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  return `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`;
-};
+import { LocationOn, FiberManualRecord, Star } from '@mui/icons-material';
+import type { Trip, Seat, SeatLayout } from '../../types/TripTypes';
+import { formatCurrency, formatTime, calculateDuration } from '../../lib/utils/format';
+import SeatMap from './SeatMap';
+import { PointSelector } from '../booking/PointSelector';
 
 const mapBusTypeToLabel = (type?: string) => {
   if (!type) return '';
@@ -60,29 +33,64 @@ const mapBusTypeToLabel = (type?: string) => {
 
 interface TripCardProps {
   trip: Trip;
+
+  // States controlled by Parent
+  isDetailsOpen: boolean;
+  isBookingOpen: boolean;
+  activeTab: number;
+  selectedSeats: Seat[];
+  selectedPickup: string;
+  selectedDropoff: string;
+
+  // Data from Parent
+  seatLayout: SeatLayout | null | undefined;
+  isLoadingSeats: boolean;
+  isSeatError: boolean;
+  isLocking: boolean;
+
+  // Handlers from Parent
+  onToggleDetails: () => void;
+  onToggleBooking: () => void;
+  onSeatSelect: (seat: Seat) => void;
+  onPickupChange: (val: string) => void;
+  onDropoffChange: (val: string) => void;
+  onContinue: () => void;
+  onBack: () => void;
 }
 
-const TripCard: React.FC<TripCardProps> = ({ trip }) => {
-  const navigate = useNavigate();
-  // click handler
-  const handleSelectTrip = () => {
-    navigate({
-      to: '/trip/$tripId',
-      params: { tripId: trip.tripId },
-    });
-  };
+const TripCard: React.FC<TripCardProps> = ({
+  trip,
+  isDetailsOpen,
+  isBookingOpen,
+  activeTab,
+  selectedSeats,
+  selectedPickup,
+  selectedDropoff,
+  seatLayout,
+  isLoadingSeats,
+  isSeatError,
+  isLocking,
+  onToggleDetails,
+  onToggleBooking,
+  onSeatSelect,
+  onPickupChange,
+  onDropoffChange,
+  onContinue,
+  onBack,
+}) => {
+  const { operator, schedules, pricing, availability, bus, from, to, duration } = trip;
 
-  // Destructure based on the Trip type from trip.ts
-  const {
-    operator,
-    route,
-    schedule,
-    pricing,
-    availability,
-    bus,
-    rating = 4.5,
-    review_count = 100,
-  } = trip;
+  const departureTime = schedules?.departureTime;
+  const arrivalTime = schedules?.arrivalTime;
+  const fromName = from?.name || 'Điểm đi';
+  const toName = to?.name || 'Điểm đến';
+
+  // Pricing Logic
+  const hasDiscount = pricing.discount > 0 && pricing.discount < pricing.original;
+  const displayPrice = hasDiscount ? pricing.discount : pricing.original;
+  const discountPercent = hasDiscount
+    ? Math.round(((pricing.original - pricing.discount) / pricing.original) * 100)
+    : 0;
 
   return (
     <Card
@@ -99,26 +107,14 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
         },
         cursor: 'pointer',
       }}
-      onClick={handleSelectTrip}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleSelectTrip();
-        }
-      }}
     >
       <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
         <Box
           sx={{
             display: 'grid',
-            // FIX:
-            // 32% for First Column (Tightens the gap)
-            // 1fr for Middle (Takes remaining space, pushes 3rd col to far right)
-            // 25% for Last Column (Keeps price aligned right)
-            gridTemplateColumns: { xs: '1fr', md: '42% 35% 20%' },
-            gap: 2, // Adds space between columns
+            gridTemplateColumns: { xs: '1fr', md: '65% 35%' },
           }}
         >
           {/* --- COLUMN 1: IMAGE & TIME/ROUTE --- */}
@@ -127,10 +123,7 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
               {/* Bus Image */}
               <Box
                 component="img"
-                src={
-                  bus.images?.[0] ||
-                  'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=300'
-                }
+                src={operator.image}
                 alt={operator.name}
                 sx={{
                   width: 120,
@@ -143,18 +136,31 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
 
               {/* Time & Route Diagram */}
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" fontWeight={700} color="text.primary">
-                  {operator.name}
-                </Typography>
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                  <Typography variant="h6" fontWeight={700} color="text.primary">
+                    {operator.name}
+                  </Typography>
 
-                {/* Rating */}
-                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 2 }}>
+                  {/* Rating */}
                   <Star sx={{ fontSize: 16, color: '#FFC107' }} />
                   <Typography variant="body2" fontWeight={600}>
-                    {rating}
+                    {operator.ratings.overall}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    ({review_count} đánh giá)
+                    ({operator.ratings.reviews} đánh giá)
+                  </Typography>
+                </Stack>
+
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 2 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 0.25 }}
+                  >
+                    {mapBusTypeToLabel(bus.type)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 2 }}>
+                    {availability.totalSeats} chỗ
                   </Typography>
                 </Stack>
 
@@ -174,10 +180,10 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                     />
                     <Stack direction="row" spacing={1} alignItems="flex-start">
                       <Typography variant="h6" fontWeight={700} lineHeight={1}>
-                        {formatTime(schedule.departureTime)}
+                        {formatTime(departureTime)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.2 }}>
-                        • {route.origin}
+                        • {fromName}
                       </Typography>
                     </Stack>
                   </Box>
@@ -193,7 +199,7 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                       top: '35%',
                     }}
                   >
-                    {calculateDuration(schedule.departureTime, schedule.arrivalTime)}
+                    {calculateDuration(duration)}
                   </Typography>
 
                   {/* Arrival */}
@@ -210,10 +216,10 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                     />
                     <Stack direction="row" spacing={1} alignItems="flex-start">
                       <Typography variant="h6" fontWeight={700} lineHeight={1}>
-                        {formatTime(schedule.arrivalTime)}
+                        {formatTime(arrivalTime)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.2 }}>
-                        • {route.destination}
+                        • {toName}
                       </Typography>
                     </Stack>
                   </Box>
@@ -222,137 +228,248 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
             </Stack>
           </Box>
 
-          {/* --- COLUMN 2: BUS INFO & AMENITIES --- */}
-          {/* This box now takes '1fr' so it fills the middle space naturally */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                bgcolor: '#f8f9fa',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-            >
-              {/* TOP PART: Split Left (Name) and Right (Icons & Chips) */}
-              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                {/* Left Side: Bus Name and Capacity */}
-                <Stack direction="row" spacing={1}>
-                  <DirectionsBus fontSize="small" color="action" sx={{ mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      {bus.model}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: 'block', mt: 0.25 }}
-                    >
-                      {mapBusTypeToLabel(bus.type)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {availability.totalSeats} Ghế
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                {/* Right Side: Icons and Chips Stacked Vertically */}
-                <Stack alignItems="flex-end" spacing={1}>
-                  {/* Icons Row */}
-                  <Stack direction="row" spacing={1} sx={{ color: 'text.secondary' }}>
-                    <Tooltip title="Wifi">
-                      <Wifi fontSize="small" />
-                    </Tooltip>
-                    <Tooltip title="Nước">
-                      <LocalDrink fontSize="small" />
-                    </Tooltip>
-                    <Tooltip title="Điều hòa">
-                      <AcUnit fontSize="small" />
-                    </Tooltip>
-                  </Stack>
-
-                  {/* Chips Row (Now under the icons) */}
-                  <Stack direction="row" spacing={1}>
-                    <Chip
-                      icon={<VerifiedUser style={{ fontSize: 14 }} />}
-                      label="An toàn"
-                      size="small"
-                      sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e8f5e9', color: '#2e7d32' }}
-                    />
-                  </Stack>
-                </Stack>
-              </Stack>
-
-              <Divider sx={{ my: 1.5 }} />
-
-              {/* BOTTOM PART: Seat Availability */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  Chỗ trống:
-                </Typography>
-                <Typography
-                  variant="body2"
-                  fontWeight={700}
-                  color={availability.availableSeats < 5 ? 'error.main' : 'success.main'}
-                >
-                  {availability.availableSeats} chỗ
-                </Typography>
-              </Stack>
-            </Box>
-          </Box>
-
-          {/* --- COLUMN 3: PRICE & ACTION --- */}
+          {/* --- COLUMN 2: PRICE & ACTION --- */}
           <Box
             sx={{
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               alignItems: { xs: 'flex-start', md: 'flex-end' },
+              minWidth: 180,
             }}
           >
-            <Box sx={{ textAlign: { xs: 'left', md: 'right' }, mt: 1 }}>
-              <Typography
-                variant="caption"
-                color="text.disabled"
-                sx={{ textDecoration: 'line-through' }}
-              >
-                {formatCurrency(pricing.basePrice * 1.2)}
-              </Typography>
-              <Typography variant="h5" fontWeight={800} color="secondary.main">
-                {formatCurrency(pricing.basePrice)}
-              </Typography>
-              <Chip
-                label="Ưu đãi"
-                color="error"
-                size="small"
-                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, mt: 0.5 }}
-              />
+            <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+              {hasDiscount ? (
+                <>
+                  <Typography variant="h5" fontWeight={800} color="primary.main" lineHeight={1.2}>
+                    {formatCurrency(displayPrice)}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 1,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.disabled"
+                      sx={{ textDecoration: 'line-through' }}
+                    >
+                      {formatCurrency(pricing.original)}
+                    </Typography>
+                    <Chip
+                      label={`-${discountPercent}%`}
+                      color="error"
+                      size="small"
+                      sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
+                    />
+                  </Box>
+                </>
+              ) : (
+                <Typography variant="h5" fontWeight={800} color="primary.main">
+                  {formatCurrency(displayPrice)}
+                </Typography>
+              )}
             </Box>
 
-            <Box sx={{ width: '100%', mt: 2 }}>
+            <Typography variant="body2" sx={{ mt: 0.5, mb: 1.5 }}>
+              Còn{' '}
+              <Box component="span" fontWeight="bold" color="success.main">
+                {availability.availableSeats}
+              </Box>{' '}
+              chỗ trống
+            </Typography>
+
+            {/* --- ACTION BUTTONS ROW --- */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+              <Typography
+                variant="body2"
+                color="primary"
+                sx={{
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontWeight: 500,
+                  '&:hover': { color: 'primary.dark' },
+                }}
+                onClick={onToggleDetails}
+              >
+                Thông tin chi tiết
+              </Typography>
+
               <Button
                 variant="contained"
-                fullWidth
-                size="large"
-                onClick={handleSelectTrip}
+                size="medium"
+                onClick={onToggleBooking}
                 sx={{
-                  bgcolor: 'warning.main',
-                  color: 'warning.contrastText',
+                  bgcolor: '#ffc107',
+                  color: '#000',
                   fontWeight: 700,
                   boxShadow: 'none',
+                  minWidth: 120,
                   '&:hover': {
-                    bgcolor: '#ffca2c',
-                    boxShadow: '0 4px 12px rgba(255, 193, 7, 0.4)',
+                    bgcolor: '#ffb300',
+                    boxShadow: '0 2px 8px rgba(255, 193, 7, 0.4)',
                   },
                 }}
               >
-                Chọn chuyến
+                {isBookingOpen ? 'Đóng' : 'Chọn chuyến'}
               </Button>
             </Box>
           </Box>
         </Box>
+
+        {/* --- Extended Panes --- */}
+        <Collapse in={!!isDetailsOpen || !!isBookingOpen} timeout="auto" unmountOnExit>
+          <Divider sx={{ my: 2 }} />
+
+          {/* === DETAIL VIEW (UPDATED GRID) === */}
+          {isDetailsOpen && (
+            <Box sx={{ p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
+              <Grid container spacing={3}>
+                {/* Replaced item xs={...} with size={{...}} */}
+                <Grid size={{ xs: 12, md: 4 }}>
+                  {trip.bus.images && trip.bus.images.length > 0 && (
+                    <Box
+                      component="img"
+                      src={trip.bus.images[0]}
+                      alt="Bus"
+                      sx={{ width: '100%', borderRadius: 2 }}
+                    />
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Thông tin nhà xe {trip.operator.name}
+                  </Typography>
+                  <Typography variant="body2" paragraph>
+                    Loại xe: {trip.bus.type} - {trip.bus.model}
+                  </Typography>
+
+                  <Box sx={{ display: 'flex', gap: 4, mb: 2 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Đánh giá
+                      </Typography>
+                      <Typography fontWeight="bold">
+                        ⭐ {trip.operator.ratings?.overall || 4.5}/5
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Tiện ích
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Chip label="Wifi" size="small" />
+                        <Chip label="Nước uống" size="small" />
+                        <Chip label="Điều hòa" size="small" />
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    *Chính sách hủy vé: Hành khách được hoàn 100% vé nếu hủy trước 24h.
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* === BOOKING VIEW === */}
+          {isBookingOpen && (
+            <>
+              <Tabs value={activeTab} sx={{ mb: 2, pointerEvents: 'none' }}>
+                <Tab label="1. Chọn chỗ" />
+                <Tab label="2. Điểm đón/trả" disabled={selectedSeats.length === 0} />
+              </Tabs>
+
+              <Box sx={{ minHeight: 300, position: 'relative' }}>
+                {isLoadingSeats ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: 300,
+                    }}
+                  >
+                    <CircularProgress />
+                  </Box>
+                ) : isSeatError || !seatLayout ? (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    Không thể tải sơ đồ ghế. Vui lòng thử lại sau.
+                  </Alert>
+                ) : (
+                  <>
+                    <Box sx={{ display: activeTab === 0 ? 'block' : 'none' }}>
+                      <SeatMap
+                        layout={seatLayout}
+                        selectedSeats={selectedSeats}
+                        onSeatToggle={onSeatSelect}
+                      />
+                    </Box>
+                    <Box sx={{ display: activeTab === 1 ? 'block' : 'none' }}>
+                      <PointSelector
+                        trip={trip}
+                        selectedPickup={selectedPickup}
+                        selectedDropoff={selectedDropoff}
+                        onPickupChange={onPickupChange}
+                        onDropoffChange={onDropoffChange}
+                      />
+                    </Box>
+                  </>
+                )}
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mt: 3,
+                  bgcolor: '#f8f9fa',
+                  p: 2,
+                  borderRadius: 2,
+                }}
+              >
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Ghế đã chọn:
+                  </Typography>
+                  <Typography variant="body1" fontWeight="bold" color="primary">
+                    {selectedSeats.length > 0
+                      ? selectedSeats.map((s) => s.seatCode).join(', ')
+                      : 'Chưa chọn'}
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography variant="h6" color="error" fontWeight="bold">
+                    {formatCurrency(selectedSeats.reduce((sum, s) => sum + s.price, 0))}
+                  </Typography>
+                  {activeTab === 1 && (
+                    <Button
+                      variant="outlined"
+                      onClick={onBack}
+                      disabled={isLocking}
+                      sx={{ minWidth: 100, mr: 1 }}
+                    >
+                      Quay lại
+                    </Button>
+                  )}
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={onContinue}
+                    disabled={selectedSeats.length === 0 || isLoadingSeats}
+                    sx={{ mt: 0.5 }}
+                  >
+                    {activeTab === 0 ? 'Tiếp tục' : 'Xác nhận đặt vé'}
+                  </Button>
+                </Box>
+              </Box>
+            </>
+          )}
+        </Collapse>
       </CardContent>
     </Card>
   );

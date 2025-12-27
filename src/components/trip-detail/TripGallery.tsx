@@ -1,6 +1,6 @@
 import React from 'react';
 import { Paper, Box } from '@mui/material';
-import { type Trip } from '@/types/trip';
+import { type Trip } from '@/types/TripTypes';
 
 const TripGallery: React.FC<{ trip: Trip }> = ({ trip }) => {
   const image = trip?.bus?.images?.[0] || 'https://via.placeholder.com/800x400?text=Bus+Image';

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { TripsApi } from '@/lib/api/TripsApi';
+import { TripsApi } from '@/lib/api/admin/TripsApi';
 import type { Trip, TripSearchRequest } from '@/types/AdminTypes';
 
 export const tripKeys = {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Stack, Typography, Chip, Rating } from '@mui/material';
 import { VerifiedUser } from '@mui/icons-material';
-import { type Trip } from '@/types/trip';
+import { type Trip } from '@/types/TripTypes';
 
 interface TripHeaderProps {
   trip: Trip;
@@ -24,7 +24,7 @@ const TripHeader: React.FC<TripHeaderProps> = ({ trip }) => {
         return 'Ghế ngồi';
     }
   };
-  const price = trip?.pricing?.basePrice || 0;
+  const price = trip?.pricing?.original || 0;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

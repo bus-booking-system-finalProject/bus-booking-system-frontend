@@ -63,7 +63,6 @@ const PROVINCES = [
 ];
 
 // Map displayed province name -> backend province identifier/value
-// Keep this mapping up-to-date if backend keys change. We default to the displayed value when no mapping exists.
 const PROVINCE_BACKEND_MAP: Record<string, string> = {
   'Hồ Chí Minh': 'Ho Chi Minh City',
   'Hà Nội': 'Hanoi',
@@ -124,6 +123,8 @@ interface LocationAutocompleteProps {
   icon: React.ReactNode;
   value: string | null;
   onChange: (newValue: string | null) => void;
+  // FIX: Use React.Ref instead of RefObject to be more compatible
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 const BannerTab = ({
@@ -235,7 +236,12 @@ const BannerInput = ({
   </Box>
 );
 
-const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value, onChange }) => (
+const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
+  icon,
+  value,
+  onChange,
+  inputRef,
+}) => (
   <Autocomplete
     options={PROVINCES}
     value={value}
@@ -247,6 +253,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
         {...params}
         placeholder="Chọn tỉnh thành..."
         variant="standard"
+        inputRef={inputRef}
         InputProps={{
           ...params.InputProps,
           disableUnderline: true,
@@ -284,10 +291,6 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
   />
 );
 
-// ----------------------------------------------------------------
-// ✅ THE EXTRACTED SEARCH WIDGET COMPONENT
-// ----------------------------------------------------------------
-
 const SearchWidget: React.FC = () => {
   const navigate = useNavigate();
 
@@ -303,23 +306,69 @@ const SearchWidget: React.FC = () => {
 
   const departInputRef = useRef<HTMLInputElement>(null);
   const returnInputRef = useRef<HTMLInputElement>(null);
+  const destInputRef = useRef<HTMLInputElement>(null); // Ref for Auto-focus
 
-  // Prefill from URL params when present
+  // 1. Initialize State (Priority: URL Params -> LocalStorage)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const o = params.get('origin');
-    const d = params.get('destination');
-    const date = params.get('date');
-    const rdate = params.get('returnDate');
+    const urlOrigin = params.get('origin');
+    const urlDest = params.get('destination');
+    const urlDate = params.get('date');
+    const urlReturn = params.get('returnDate');
 
-    // Use a microtask to avoid synchronous cascading renders
     Promise.resolve().then(() => {
-      if (o) setOrigin(BACKEND_TO_DISPLAY[o] || decodeURIComponent(o));
-      if (d) setDestination(BACKEND_TO_DISPLAY[d] || decodeURIComponent(d));
-      if (date) setDepartDate(date);
-      if (rdate) setReturnDate(rdate);
+      if (urlOrigin || urlDest || urlDate) {
+        if (urlOrigin) setOrigin(BACKEND_TO_DISPLAY[urlOrigin] || decodeURIComponent(urlOrigin));
+        if (urlDest) setDestination(BACKEND_TO_DISPLAY[urlDest] || decodeURIComponent(urlDest));
+        if (urlDate) setDepartDate(urlDate);
+        if (urlReturn) setReturnDate(urlReturn);
+      } else {
+        const savedState = localStorage.getItem('search-widget-state');
+        if (savedState) {
+          try {
+            const parsed = JSON.parse(savedState);
+            if (parsed.origin) setOrigin(parsed.origin);
+            if (parsed.destination) setDestination(parsed.destination);
+            const today = getTodayString();
+            if (parsed.departDate && parsed.departDate >= today) setDepartDate(parsed.departDate);
+            if (parsed.returnDate && parsed.returnDate >= today) setReturnDate(parsed.returnDate);
+          } catch (e) {
+            console.error('Failed to parse saved search state', e);
+          }
+        }
+      }
     });
   }, []);
+
+  // 2. Persist State to LocalStorage on Change
+  useEffect(() => {
+    const stateToSave = {
+      origin,
+      destination,
+      departDate,
+      returnDate,
+    };
+    localStorage.setItem('search-widget-state', JSON.stringify(stateToSave));
+  }, [origin, destination, departDate, returnDate]);
+
+  // 3. Auto-flow Handlers
+  const handleOriginChange = (newValue: string | null) => {
+    setOrigin(newValue);
+    if (newValue) {
+      setTimeout(() => {
+        destInputRef.current?.focus();
+      }, 100);
+    }
+  };
+
+  const handleDestinationChange = (newValue: string | null) => {
+    setDestination(newValue);
+    if (newValue) {
+      setTimeout(() => {
+        departInputRef.current?.showPicker();
+      }, 100);
+    }
+  };
 
   const handleSwapLocation = () => {
     setOrigin(destination);
@@ -338,7 +387,6 @@ const SearchWidget: React.FC = () => {
       return;
     }
 
-    // Map displayed province names to backend values when building the URL/search params
     const backendOrigin = PROVINCE_BACKEND_MAP[origin] || origin;
     const backendDestination = PROVINCE_BACKEND_MAP[destination] || destination;
 
@@ -357,7 +405,6 @@ const SearchWidget: React.FC = () => {
 
   return (
     <>
-      {/* --- SEARCH WIDGET --- */}
       <Paper
         elevation={4}
         sx={{
@@ -369,7 +416,6 @@ const SearchWidget: React.FC = () => {
           boxShadow: '0px 10px 40px rgba(0,0,0,0.1)',
         }}
       >
-        {/* Tabs */}
         <Box
           sx={{
             display: 'flex',
@@ -410,7 +456,6 @@ const SearchWidget: React.FC = () => {
           />
         </Box>
 
-        {/* Input Row */}
         <Box sx={{ p: 3 }}>
           <Box
             sx={{
@@ -423,7 +468,6 @@ const SearchWidget: React.FC = () => {
               alignItems: 'center',
             }}
           >
-            {/* 1. LOCATION SECTION */}
             <Box>
               <Paper
                 variant="outlined"
@@ -436,9 +480,7 @@ const SearchWidget: React.FC = () => {
                   py: 0.5,
                 }}
               >
-                {/* Origin */}
                 <Box sx={{ flex: 1 }}>
-                  {/* NEW LABEL HERE */}
                   <Typography
                     variant="caption"
                     color="text.secondary"
@@ -449,7 +491,7 @@ const SearchWidget: React.FC = () => {
                   <LocationAutocomplete
                     icon={<RadioButtonChecked color="primary" />}
                     value={origin}
-                    onChange={setOrigin}
+                    onChange={handleOriginChange}
                   />
                 </Box>
 
@@ -461,9 +503,7 @@ const SearchWidget: React.FC = () => {
                   <SwapHoriz fontSize="small" color="action" />
                 </IconButton>
 
-                {/* Destination */}
                 <Box sx={{ flex: 1 }}>
-                  {/* NEW LABEL HERE */}
                   <Typography
                     variant="caption"
                     color="text.secondary"
@@ -474,13 +514,13 @@ const SearchWidget: React.FC = () => {
                   <LocationAutocomplete
                     icon={<LocationOn color="error" />}
                     value={destination}
-                    onChange={setDestination}
+                    onChange={handleDestinationChange}
+                    inputRef={destInputRef}
                   />
                 </Box>
               </Paper>
             </Box>
 
-            {/* Dates */}
             <Box>
               <Paper
                 variant="outlined"
@@ -493,7 +533,6 @@ const SearchWidget: React.FC = () => {
                   position: 'relative',
                 }}
               >
-                {/* Depart */}
                 <Box sx={{ flex: 1 }}>
                   <input
                     type="date"
@@ -519,7 +558,6 @@ const SearchWidget: React.FC = () => {
                   sx={{ mx: 2, height: '30px', alignSelf: 'center' }}
                 />
 
-                {/* Return */}
                 <Box sx={{ flex: 1, position: 'relative' }}>
                   <input
                     type="date"
@@ -560,7 +598,6 @@ const SearchWidget: React.FC = () => {
               </Paper>
             </Box>
 
-            {/* Button */}
             <Box>
               <Button
                 fullWidth

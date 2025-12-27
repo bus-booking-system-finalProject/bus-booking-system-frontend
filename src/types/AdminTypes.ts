@@ -63,7 +63,8 @@ export interface Trip {
   busId: string;
   departureTime: string; // ISO String
   arrivalTime: string; // ISO String
-  basePrice: number;
+  originalPrice: number;
+  discountPrice: number;
   status: TripStatus;
   // Expanded fields from backend
   route?: Route;

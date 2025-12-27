@@ -1,4 +1,6 @@
 import { createRoute } from '@tanstack/react-router';
+import { rootRoute } from './RootRoute.tsx';
+import Header from '@/components/layout/Header.tsx';
 import SearchResultsPage from '../pages/SearchResultsPage.tsx';
 import { z } from 'zod'; // You probably have zod installed
 
@@ -11,14 +13,14 @@ const tripSearchSchema = z.object({
   page: z.number().default(1).optional(),
   limit: z.number().default(5).optional(),
   sort: z.enum(['earliest', 'latest', 'lowest_price', 'highest_rating']).optional(),
+  minTime: z.string().optional(),
+  maxTime: z.string().optional(),
   priceMin: z.number().optional(),
   priceMax: z.number().optional(),
   operators: z.union([z.string(), z.array(z.string())]).optional(),
   busTypes: z.union([z.string(), z.array(z.string())]).optional(),
   times: z.union([z.string(), z.array(z.string())]).optional(),
 });
-import Header from '@/components/layout/Header.tsx';
-import { rootRoute } from './RootRoute.tsx';
 
 export const searchResultRoute = createRoute({
   getParentRoute: () => rootRoute,

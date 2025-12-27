@@ -14,6 +14,8 @@ import { bookingCheckoutRoute } from './routes/BookingCheckoutRoute.tsx';
 import { findTicketRoute } from './routes/FindTicketRoute.tsx';
 import { historyRoute } from './routes/HistoryRoute.tsx';
 import { analyticsRoute } from './routes/admin/AnalyticsRoute.tsx';
+import { bookingConfirmationRoute } from './routes/BookingConfirmationRoute.tsx';
+import { bookingPaymentRoute } from './routes/BookingPaymentRoute.tsx';
 
 export const routeTree = rootRoute.addChildren([
   searchResultRoute,
@@ -21,7 +23,9 @@ export const routeTree = rootRoute.addChildren([
     HomeRoute,
     oauthCallbackRoute,
     tripDetailRoute,
+    bookingConfirmationRoute,
     bookingCheckoutRoute,
+    bookingPaymentRoute,
     findTicketRoute,
     historyRoute,
   ]),

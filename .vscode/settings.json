@@ -12,13 +12,19 @@
   "cSpell.words": [
     "adminpass",
     "appbar",
+    "dropoff",
     "Futa",
     "khỏe",
+    "momo",
     "newpass",
     "onclone",
+    "payos",
+    "rdate",
     "Tourismo",
     "VEXESIEURE",
     "webfonts",
     "wrongpass"
-  ]
+  ],
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "javascript.updateImportsOnFileMove.enabled": "always"
 }

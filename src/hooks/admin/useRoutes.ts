@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { RoutesApi } from '@/lib/api/RoutesApi';
+import { RoutesApi } from '@/lib/api/admin/RoutesApi';
 import type { Route } from '@/types/AdminTypes';
 
 export const routeKeys = {

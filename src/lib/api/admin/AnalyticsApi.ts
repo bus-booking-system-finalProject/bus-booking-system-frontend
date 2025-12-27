@@ -1,5 +1,5 @@
 // src/lib/api/AnalyticsApi.ts
-import { apiPrivate } from './axios';
+import { apiPrivate } from '@/lib/api/axios';
 import type {
   AnalyticsSummary,
   RevenueTrend,

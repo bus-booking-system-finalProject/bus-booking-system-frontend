@@ -4,14 +4,21 @@ export type BusType = 'Limousine' | 'Sleeper' | 'Seater';
 
 // Matches: "route": { "origin": "...", "destination": "...", "durationMinutes": 1800 }
 export interface RouteInfo {
-  origin: string;
-  destination: string;
+  name: string;
+  pickup_points: StopPoint[];
+  dropoff_points: StopPoint[];
   durationMinutes: number;
 }
 
 // Matches: "operator": { "name": "Futa Bus Lines" }
 export interface OperatorInfo {
+  id: string;
   name: string;
+  image: string;
+  ratings: {
+    overall: number;
+    reviews: number;
+  };
 }
 
 // Matches: "bus": { "model": "...", "type": "..." }
@@ -23,14 +30,16 @@ export interface BusInfo {
 
 // Matches: "schedule": { "departureTime": "...", "arrivalTime": "..." }
 export interface ScheduleInfo {
+  hour: number;
+  minute: number;
   departureTime: string;
   arrivalTime: string;
 }
 
 // Matches: "pricing": { "basePrice": 350000.00, "currency": "VND" }
 export interface PricingInfo {
-  basePrice: number;
-  currency: string;
+  original: number;
+  discount: number;
 }
 
 // Matches: "availability": { "totalSeats": 36, "availableSeats": 30 }
@@ -45,13 +54,17 @@ export interface Trip {
   route: RouteInfo;
   operator: OperatorInfo;
   bus: BusInfo;
-  schedule: ScheduleInfo;
+  schedules: ScheduleInfo;
   pricing: PricingInfo;
   availability: AvailabilityInfo;
   status: TripStatus;
-  // These might be missing from backend, so make them optional or default them in UI
+  duration: number;
+  pickupPoints: StopPoint[];
+  dropoffPoints: StopPoint[];
   rating?: number;
   review_count?: number;
+  from?: StopPoint;
+  to?: StopPoint;
 }
 
 export type SeatStatus = 'available' | 'booked' | 'maintenance' | 'selected' | 'locked';
@@ -83,6 +96,8 @@ export interface CreateBookingRequest {
   contactPhone: string;
   isGuestCheckout: boolean;
   sessionId: string;
+  pickupId: string;
+  dropoffId: string;
 }
 
 // UPDATED: Matches the "GET /booking/tickets/{id}" response
@@ -179,4 +194,12 @@ export interface CancelTicketResponse {
     refundMethod: string | null;
   };
   cancelledAt: string;
+}
+
+export interface StopPoint {
+  stopId: string;
+  name: string;
+  address: string;
+  type: 'PICKUP' | 'DROPOFF';
+  time: string; // ISO string
 }

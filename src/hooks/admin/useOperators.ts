@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { OperatorsApi } from '@/lib/api/OperatorsApi';
+import { OperatorsApi } from '@/lib/api/admin/OperatorsApi';
 import type { Operator } from '@/types/AdminTypes';
 
 export const operatorKeys = {

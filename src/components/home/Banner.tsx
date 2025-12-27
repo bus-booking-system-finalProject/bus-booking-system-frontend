@@ -1,7 +1,7 @@
 import { Box, Container, Typography, Stack } from '@mui/material';
 import { VerifiedUser, HeadsetMic, ConfirmationNumber, Payment } from '@mui/icons-material';
 
-import SearchWidget from './SearchWidget';
+import SearchWidget from '../search/SearchWidget';
 
 // --- Main Component ---
 

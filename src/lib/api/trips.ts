@@ -1,4 +1,5 @@
 import { apiClient, apiPrivate } from './axios';
+import qs from 'qs';
 import type {
   Trip,
   SeatLayout,
@@ -10,7 +11,7 @@ import type {
   UnlockSeatsResponse,
   TicketHistoryResponse,
   CancelTicketResponse,
-} from '@/types/trip';
+} from '@/types/TripTypes';
 
 export interface SearchTripsParams {
   origin: string;
@@ -21,11 +22,13 @@ export interface SearchTripsParams {
   limit?: number;
   // Filters (passed directly as backend expects them)
   sort?: 'earliest' | 'latest' | 'lowest_price' | 'highest_rating';
+  operator?: string[];
   priceMin?: number;
   priceMax?: number;
   operators?: string[]; // Operator names (multi-select)
   busTypes?: string[]; // 'standard' | 'limousine' | 'sleeper' (single selection, array with 0 or 1 element)
-  times?: string[]; // 'morning' | 'afternoon' | 'evening' | 'night' (single selection, array with 0 or 1 element)
+  minTime?: string;
+  maxTime?: string;
 }
 
 export interface SearchResponse {
@@ -51,9 +54,10 @@ export const searchTrips = async (params: SearchTripsParams): Promise<SearchResp
     sort: params.sort,
     minPrice: params.priceMin,
     maxPrice: params.priceMax,
-    // busType and departureTime are now single-selection (0 or 1 value in array)
-    busType: params.busTypes && params.busTypes.length > 0 ? params.busTypes[0] : undefined,
-    departureTime: params.times && params.times.length > 0 ? params.times[0] : undefined,
+    minDepartureTime: params.minTime,
+    maxDepartureTime: params.maxTime,
+    operators: params.operators,
+    busTypes: params.busTypes,
   };
 
   // Remove undefined keys for clean URL
@@ -65,6 +69,9 @@ export const searchTrips = async (params: SearchTripsParams): Promise<SearchResp
 
   const response = await apiClient.get<SearchResponse>('/booking/trips/search', {
     params: cleanParams,
+    paramsSerializer: (params) => {
+      return qs.stringify(params, { arrayFormat: 'repeat' });
+    },
   });
   return response.data;
 };

@@ -1,8 +1,8 @@
 // src/components/trip-detail/SeatMap.tsx
 import React, { useState } from 'react';
 import { Box, Typography, Stack, Tabs, Tab, Tooltip } from '@mui/material';
-import { EventSeat, Lock } from '@mui/icons-material'; // Import Lock icon
-import { type Seat, type SeatLayout } from '@/types/trip';
+import { EventSeat } from '@mui/icons-material'; // Import Lock icon
+import { type Seat, type SeatLayout } from '@/types/TripTypes';
 
 interface SeatMapProps {
   layout: SeatLayout;
@@ -29,8 +29,8 @@ const SeatMap: React.FC<SeatMapProps> = ({ layout, selectedSeats, onSeatToggle }
     }
 
     const selected = isSelected(seat.seatId);
-    const booked = seat.status === 'booked';
     const locked = seat.status === 'locked';
+    const booked = seat.status === 'booked' || locked;
 
     // Status Logic
     const isUnavailable = booked || locked;
@@ -46,10 +46,6 @@ const SeatMap: React.FC<SeatMapProps> = ({ layout, selectedSeats, onSeatToggle }
       bgcolor = '#e0e0e0'; // Gray
       iconColor = '#9e9e9e'; // Dark Gray
       tooltipTitle = 'Đã bán';
-    } else if (locked) {
-      bgcolor = '#ffcdd2'; // Light Red
-      iconColor = '#e57373'; // Red
-      tooltipTitle = 'Đang giữ chỗ'; // "Held by someone else"
     } else if (selected) {
       bgcolor = '#FFC107'; // Yellow/Orange
       borderColor = '#ffca2c';
@@ -89,11 +85,7 @@ const SeatMap: React.FC<SeatMapProps> = ({ layout, selectedSeats, onSeatToggle }
         >
           <Stack alignItems="center" spacing={-0.5}>
             {/* Use Lock icon for locked seats, Seat icon for others */}
-            {locked ? (
-              <Lock sx={{ fontSize: 16, color: iconColor, opacity: 0.7 }} />
-            ) : (
-              <EventSeat sx={{ fontSize: 18, color: iconColor, opacity: 0.8 }} />
-            )}
+            <EventSeat sx={{ fontSize: 18, color: iconColor, opacity: 0.8 }} />
 
             <Typography
               variant="caption"

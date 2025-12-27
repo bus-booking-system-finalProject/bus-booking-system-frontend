@@ -1,7 +1,7 @@
 import React from 'react';
 import { Paper, Typography, Stack } from '@mui/material';
 import { Wifi, AcUnit, LocalDrink, Usb, Chair } from '@mui/icons-material';
-import { type Trip } from '@/types/trip';
+import { type Trip } from '@/types/TripTypes';
 
 const AmenityItem = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
   <Stack

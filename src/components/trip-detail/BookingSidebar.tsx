@@ -16,11 +16,11 @@ import {
   TextField,
 } from '@mui/material';
 import { Close, AccessTime } from '@mui/icons-material';
-import { type Trip, type Seat } from '@/types/trip';
+import { type Trip, type Seat } from '@/types/TripTypes'; // Ensure this path matches your file structure (e.g., '@/types/trip')
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getTripSeats, createBooking, lockSeats, unlockSeats } from '@/lib/api/trips';
 import { useNavigate } from '@tanstack/react-router';
-import SeatMap from './SeatMap';
+import SeatMap from '../search/SeatMap';
 import { useAuth } from '@/hooks/useAuth';
 import { AxiosError } from 'axios';
 import { getSessionId } from '@/utils/session';
@@ -30,7 +30,19 @@ interface ApiErrorResponse {
   message: string;
 }
 
-const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
+interface BookingSidebarProps {
+  trip: Trip;
+  selectedPickupId: string | null;
+  selectedDropoffId: string | null;
+  bookingDisabled: boolean;
+}
+
+const BookingSidebar: React.FC<BookingSidebarProps> = ({
+  trip,
+  selectedPickupId,
+  selectedDropoffId,
+  bookingDisabled,
+}) => {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
 
@@ -72,12 +84,10 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
     },
   });
 
-  // --- MUTATION 2: CREATE BOOKING (Second Step) ---
+  // --- MUTATION 2: UNLOCK SEATS (Cleanup) ---
   const unlockMutation = useMutation({
     mutationFn: unlockSeats,
     onError: (error) => {
-      // We generally fail silently here or just log it,
-      // because the user is canceling anyway.
       console.error('Failed to unlock seats:', error);
     },
   });
@@ -88,7 +98,6 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
     onSuccess: (data) => {
       navigate({
         to: '/booking/checkout',
-        // FIX: Replaced 'as any' with specific type to satisfy linter
         search: { ticketId: data.ticketId } as { ticketId: string },
       });
     },
@@ -102,20 +111,18 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
   useEffect(() => {
     if (!openDialog || !lockExpirationTime) return;
 
-    // Update time immediately
     const updateTimer = () => {
       const now = Date.now();
       const diff = lockExpirationTime - now;
       setTimeLeft(diff > 0 ? diff : 0);
     };
 
-    updateTimer(); // Initial call
+    updateTimer();
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
   }, [openDialog, lockExpirationTime]);
 
-  // Helper: Format MM:SS
   const formatCountdown = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
@@ -139,6 +146,11 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
 
   // Step 1: Click "Tiếp tục" -> Call Lock API
   const handleContinueClick = () => {
+    // FIX 1: Enforce bookingDisabled check here
+    if (bookingDisabled) {
+      alert('Vui lòng chọn điểm đón và trả khách trước.');
+      return;
+    }
     if (selectedSeats.length === 0) return;
 
     const sessionId = getSessionId();
@@ -152,12 +164,9 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
   };
 
   const handleCloseDialog = () => {
-    // 1. Close UI immediately
     setOpenDialog(false);
     setLockExpirationTime(null);
 
-    // 2. Call API to unlock seats
-    // Only unlock if we actually have selected seats (sanity check)
     if (selectedSeats.length > 0) {
       const sessionId = getSessionId();
       const seatCodes = selectedSeats.map((s) => s.seatCode);
@@ -177,11 +186,16 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
       return;
     }
 
-    // Check if lock expired
+    // Safety check for Pickup/Dropoff
+    if (!selectedPickupId || !selectedDropoffId) {
+      alert('Thiếu thông tin điểm đón/trả.');
+      return;
+    }
+
     if (timeLeft <= 0) {
       alert('Thời gian giữ ghế đã hết. Vui lòng chọn lại.');
       setOpenDialog(false);
-      window.location.reload(); // Refresh to reset state
+      window.location.reload();
       return;
     }
 
@@ -196,7 +210,9 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
       contactEmail: formData.email,
       contactPhone: formData.phone,
       isGuestCheckout: isGuest,
-      sessionId: sessionId, // Send Session ID
+      sessionId: sessionId,
+      pickupId: selectedPickupId,
+      dropoffId: selectedDropoffId,
     });
   };
 
@@ -297,26 +313,24 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
             variant="contained"
             fullWidth
             size="large"
-            disabled={selectedSeats.length === 0 || lockMutation.isPending}
+            // FIX 3: Disable button if booking is disabled (no pickup/dropoff selected)
+            disabled={selectedSeats.length === 0 || lockMutation.isPending || bookingDisabled}
             sx={{ bgcolor: '#FFC107', color: 'black', fontWeight: 700, py: 1.5 }}
             onClick={handleContinueClick}
           >
             {lockMutation.isPending
               ? 'Đang giữ ghế...'
-              : selectedSeats.length === 0
-                ? 'Vui lòng chọn ghế'
-                : 'Tiếp tục'}
+              : bookingDisabled
+                ? 'Chọn điểm đón/trả'
+                : selectedSeats.length === 0
+                  ? 'Vui lòng chọn ghế'
+                  : 'Tiếp tục'}
           </Button>
         </Box>
       </Paper>
 
       {/* --- POPUP DIALOG --- */}
-      <Dialog
-        open={openDialog}
-        onClose={handleCloseDialog} // Trigger unlock on Backdrop click / Escape
-        maxWidth="xs"
-        fullWidth
-      >
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="xs" fullWidth>
         <DialogTitle
           sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
@@ -329,7 +343,6 @@ const BookingSidebar: React.FC<{ trip: Trip }> = ({ trip }) => {
         </DialogTitle>
 
         <DialogContent dividers>
-          {/* COUNTDOWN TIMER ALERT */}
           <Alert severity="warning" icon={<AccessTime />} sx={{ mb: 3, alignItems: 'center' }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" width="100%">
               <Typography variant="body2">Hoàn tất trong:</Typography>

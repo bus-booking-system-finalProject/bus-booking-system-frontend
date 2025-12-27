@@ -12,17 +12,10 @@ import { useSearch, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { searchTrips } from '@/lib/api/trips';
 import { searchResultRoute } from '@/routes/searchResult';
-import { type Trip } from '@/types/trip';
+import { type Trip } from '@/types/TripTypes';
 
 // Constants
 const ITEMS_PER_PAGE = 5;
-
-// const INITIAL_FILTERS: FilterState = {
-//   priceRange: [0, 2000000],
-//   selectedTimes: [],
-//   selectedOperators: [],
-//   selectedTypes: [],
-// };
 
 const SearchResultsPage: React.FC = () => {
   // 1. Read URL Params
@@ -33,21 +26,32 @@ const SearchResultsPage: React.FC = () => {
   const sortOption: SortOption = (searchParams.sort as SortOption) || 'earliest';
   const priceMin = searchParams.priceMin || 0;
   const priceMax = searchParams.priceMax || 2000000;
-  const operators = searchParams.operators
-    ? Array.isArray(searchParams.operators)
-      ? searchParams.operators
-      : [searchParams.operators]
-    : [];
-  const busTypes = searchParams.busTypes
-    ? Array.isArray(searchParams.busTypes)
-      ? searchParams.busTypes
-      : [searchParams.busTypes]
-    : [];
-  const times = searchParams.times
-    ? Array.isArray(searchParams.times)
-      ? searchParams.times
-      : [searchParams.times]
-    : [];
+
+  // New Time Range params
+  const minTime = searchParams.minTime;
+  const maxTime = searchParams.maxTime;
+
+  // Memoize arrays to prevent re-renders
+  const operators = useMemo(
+    () =>
+      searchParams.operators
+        ? Array.isArray(searchParams.operators)
+          ? searchParams.operators
+          : [searchParams.operators]
+        : [],
+    [searchParams.operators],
+  );
+
+  const busTypes = useMemo(
+    () =>
+      searchParams.busTypes
+        ? Array.isArray(searchParams.busTypes)
+          ? searchParams.busTypes
+          : [searchParams.busTypes]
+        : [],
+    [searchParams.busTypes],
+  );
+
   const page = searchParams.page || 1;
   const limit = searchParams.limit || ITEMS_PER_PAGE;
 
@@ -68,9 +72,10 @@ const SearchResultsPage: React.FC = () => {
       sortOption,
       priceMin,
       priceMax,
+      minTime,
+      maxTime,
       operators,
       busTypes,
-      times,
     ],
     queryFn: () =>
       searchTrips({
@@ -79,12 +84,14 @@ const SearchResultsPage: React.FC = () => {
         date: searchParams.date || new Date().toISOString().split('T')[0],
         page,
         limit: limit,
-        ...(sortOption && { sort: sortOption }),
+        sort: sortOption, // simplified
         priceMin: priceMin,
         priceMax: priceMax,
+        // FIX: Match property names with SearchTripsParams in api/trips.ts
+        ...(minTime && { minTime: minTime }),
+        ...(maxTime && { maxTime: maxTime }),
         ...(operators.length > 0 && { operators }),
         ...(busTypes.length > 0 && { busTypes }),
-        ...(times.length > 0 && { times }),
       }),
     enabled: !!searchParams.origin && !!searchParams.destination,
   });
@@ -102,7 +109,7 @@ const SearchResultsPage: React.FC = () => {
         origin: searchParams.origin || '',
         destination: searchParams.destination || '',
         date: searchParams.date || new Date().toISOString().split('T')[0],
-        limit: 1000, // Fetch more to get all available options
+        limit: 1000,
       }),
     enabled: !!searchParams.origin && !!searchParams.destination,
   });
@@ -113,7 +120,7 @@ const SearchResultsPage: React.FC = () => {
 
     const operatorList = [...new Set(allTripsData.data.map((t: Trip) => t.operator.name))];
     const busTypeList = [...new Set(allTripsData.data.map((t: Trip) => t.bus.type))];
-    const maxPrice = Math.max(...allTripsData.data.map((t: Trip) => t.pricing.basePrice));
+    const maxPrice = Math.max(...allTripsData.data.map((t: Trip) => t.pricing.original));
 
     return { operators: operatorList, busTypes: busTypeList, maxPrice };
   }, [allTripsData]);
@@ -125,27 +132,28 @@ const SearchResultsPage: React.FC = () => {
         ...prev,
         priceMin: newFilters.priceRange[0],
         priceMax: newFilters.priceRange[1],
+        minTime: newFilters.minTime || undefined,
+        maxTime: newFilters.maxTime || undefined,
         operators:
           newFilters.selectedOperators.length > 0 ? newFilters.selectedOperators : undefined,
         busTypes: newFilters.selectedTypes.length > 0 ? newFilters.selectedTypes : undefined,
-        times: newFilters.selectedTimes.length > 0 ? newFilters.selectedTimes : undefined,
-        page: 1, // Reset to page 1 when filtering
+        page: 1,
       }),
     });
   };
 
-  // 5. Handle sort changes - update URL params
+  // 5. Handle sort changes
   const handleSortChange = (newSort: SortOption) => {
     navigate({
       search: (prev) => ({
         ...prev,
         sort: newSort,
-        page: 1, // Reset to page 1 when sorting
+        page: 1,
       }),
     });
   };
 
-  // 6. Handle page changes - update URL params
+  // 6. Handle page changes
   const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
     navigate({
       search: (prev) => ({
@@ -156,16 +164,17 @@ const SearchResultsPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // 7. Handle reset filters - update URL params
+  // 7. Handle reset filters
   const handleResetFilters = () => {
     navigate({
       search: (prev) => ({
         ...prev,
         priceMin: undefined,
         priceMax: undefined,
+        minTime: undefined,
+        maxTime: undefined,
         operators: undefined,
         busTypes: undefined,
-        times: undefined,
         sort: undefined,
         page: 1,
       }),
@@ -173,30 +182,28 @@ const SearchResultsPage: React.FC = () => {
   };
 
   // Reconstruct current filters from URL params for display
-  const currentFilters: FilterState = {
-    priceRange: [priceMin, priceMax],
-    selectedTimes: times as string[],
-    selectedOperators: operators as string[],
-    selectedTypes: busTypes as string[],
-  };
-
-  // --- MAPPING API DATA TO TRIP CARD ---
-  // The API response structure might differ slightly from what TripCard expects.
-  // We need to map it if necessary, or update TripCard types.
-  // Assuming TripCard expects the 'Trip' type we defined earlier which matches the API response mostly.
+  const currentFilters: FilterState = useMemo(
+    () => ({
+      priceRange: [priceMin, priceMax],
+      minTime: minTime,
+      maxTime: maxTime,
+      selectedOperators: operators as string[],
+      selectedTypes: busTypes as string[],
+    }),
+    [priceMin, priceMax, minTime, maxTime, operators, busTypes],
+  );
 
   return (
     <Box sx={{ bgcolor: '#f4f6f8', minHeight: '100vh', pb: 8, maxWidth: '85%', mx: 'auto' }}>
-      {/* 1. HEADER */}
-      <Box sx={{ borderBottom: '1px solid #e0e0e0', py: 2, mb: 4, mx: 'auto', width: '100%' }}>
-        {/* SEARCH WIDGET HERE */}
+      <Box
+        sx={{ borderBottom: '1px solid #e0e0e0', py: 2, mb: 4, mx: 'auto', width: '100%' }}
+        maxWidth="lg"
+      >
         <SearchWidget />
       </Box>
 
-      {/* CONTENT */}
-      <Container maxWidth="xl">
+      <Container maxWidth="lg">
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="flex-start">
-          {/* LEFT SIDEBAR */}
           <Box sx={{ width: { xs: '100%', md: '280px' }, flexShrink: 0 }}>
             <FilterSidebar
               filters={currentFilters}
@@ -208,7 +215,6 @@ const SearchResultsPage: React.FC = () => {
             />
           </Box>
 
-          {/* RIGHT LIST */}
           <Box sx={{ flex: 1, width: '100%' }}>
             {isLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>

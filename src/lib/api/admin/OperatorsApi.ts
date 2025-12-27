@@ -1,5 +1,5 @@
 // src/lib/api/OperatorsApi.ts
-import { apiPrivate } from './axios';
+import { apiPrivate } from '@/lib/api/axios';
 import type { Operator, ApiResponse } from '@/types/AdminTypes';
 
 export const OperatorsApi = {

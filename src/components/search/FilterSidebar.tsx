@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -11,16 +11,14 @@ import {
   AccordionSummary,
   AccordionDetails,
   Button,
-  RadioGroup,
-  Radio,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { TIME_RANGES } from '@/config/TripFilters';
 
 // --- TYPES ---
 export interface FilterState {
   priceRange: number[];
-  selectedTimes: string[]; // e.g. ['0-6', '12-18']
+  minTime: string | undefined;
+  maxTime: string | undefined;
   selectedOperators: string[];
   selectedTypes: string[];
 }
@@ -34,6 +32,22 @@ interface FilterSidebarProps {
   maxPrice: number;
 }
 
+// --- HELPER FUNCTIONS ---
+const minutesToTime = (minutes: number): string => {
+  // Fix: Java LocalTime max is 23:59. "24:00" will cause a parsing error.
+  if (minutes >= 1440) return '23:59';
+
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
+const timeToMinutes = (time: string | undefined, defaultVal: number): number => {
+  if (!time) return defaultVal;
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
 const FilterSidebar: React.FC<FilterSidebarProps> = ({
   filters,
   onFilterChange,
@@ -42,6 +56,31 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   availableBusTypes,
   maxPrice,
 }) => {
+  // 1. LOCAL STATE
+  const [localPriceRange, setLocalPriceRange] = useState<number[]>(filters.priceRange);
+  const [localTimeRange, setLocalTimeRange] = useState<number[]>([
+    timeToMinutes(filters.minTime, 0),
+    timeToMinutes(filters.maxTime, 1440),
+  ]);
+
+  // 2. STATE TO TRACK PREVIOUS PROPS (Sync Pattern)
+  const [prevPriceProp, setPrevPriceProp] = useState<number[]>(filters.priceRange);
+  const [prevMinTime, setPrevMinTime] = useState(filters.minTime);
+  const [prevMaxTime, setPrevMaxTime] = useState(filters.maxTime);
+
+  // Sync Price
+  if (filters.priceRange[0] !== prevPriceProp[0] || filters.priceRange[1] !== prevPriceProp[1]) {
+    setPrevPriceProp(filters.priceRange);
+    setLocalPriceRange(filters.priceRange);
+  }
+
+  // Sync Time
+  if (filters.minTime !== prevMinTime || filters.maxTime !== prevMaxTime) {
+    setPrevMinTime(filters.minTime);
+    setPrevMaxTime(filters.maxTime);
+    setLocalTimeRange([timeToMinutes(filters.minTime, 0), timeToMinutes(filters.maxTime, 1440)]);
+  }
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -50,7 +89,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     }).format(value);
   };
 
-  // Map bus type backend values to display labels
   const getBusTypeLabel = (type: string): string => {
     const labelMap: Record<string, string> = {
       standard: 'Ghế ngồi',
@@ -61,18 +99,39 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   };
 
   // --- HANDLERS ---
-
-  // 1. Handle Price Slider
   const handlePriceChange = (_event: Event, newValue: number | number[]) => {
+    setLocalPriceRange(newValue as number[]);
+  };
+
+  const handlePriceCommitted = (
+    _event: React.SyntheticEvent | Event,
+    newValue: number | number[],
+  ) => {
     onFilterChange({ ...filters, priceRange: newValue as number[] });
   };
 
-  // 2. Generic Checkbox Handler (for Arrays like operators, types, times)
+  const handleTimeChange = (_event: Event, newValue: number | number[]) => {
+    setLocalTimeRange(newValue as number[]);
+  };
+
+  const handleTimeCommitted = (
+    _event: React.SyntheticEvent | Event,
+    newValue: number | number[],
+  ) => {
+    const [startMin, endMin] = newValue as number[];
+    onFilterChange({
+      ...filters,
+      minTime: minutesToTime(startMin),
+      maxTime: minutesToTime(endMin),
+    });
+  };
+
+  // Generic Checkbox Handler (Used for both Operators and Bus Types now)
   const handleCheckboxChange = (category: keyof FilterState, value: string) => {
     const currentList = filters[category] as string[];
     const newList = currentList.includes(value)
-      ? currentList.filter((item) => item !== value) // Remove if exists
-      : [...currentList, value]; // Add if not exists
+      ? currentList.filter((item) => item !== value)
+      : [...currentList, value];
 
     onFilterChange({ ...filters, [category]: newList });
   };
@@ -89,27 +148,37 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
       </Box>
 
       {/* 1. PRICE RANGE */}
-      <Box sx={{ mb: 3, px: 1 }}>
-        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-          Giá vé
-        </Typography>
-        <Slider
-          value={filters.priceRange}
-          onChange={handlePriceChange}
-          valueLabelDisplay="auto"
-          min={0}
-          max={maxPrice}
-          step={50000}
-        />
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            {formatCurrency(filters.priceRange[0])}
+      <Accordion
+        defaultExpanded
+        elevation={0}
+        disableGutters
+        sx={{ '&:before': { display: 'none' } }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 48 }}>
+          <Typography variant="subtitle1" fontWeight={600}>
+            Giá vé
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {formatCurrency(filters.priceRange[1])}
-          </Typography>
-        </Box>
-      </Box>
+        </AccordionSummary>
+        <AccordionDetails sx={{ px: 1, pb: 2 }}>
+          <Slider
+            value={localPriceRange}
+            onChange={handlePriceChange}
+            onChangeCommitted={handlePriceCommitted}
+            valueLabelDisplay="auto"
+            min={0}
+            max={maxPrice}
+            step={10000}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              {formatCurrency(localPriceRange[0])}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {formatCurrency(localPriceRange[1])}
+            </Typography>
+          </Box>
+        </AccordionDetails>
+      </Accordion>
 
       {/* 2. DEPARTURE TIME */}
       <Accordion
@@ -123,25 +192,25 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
             Giờ đi
           </Typography>
         </AccordionSummary>
-        <AccordionDetails sx={{ p: 0 }}>
-          <FormGroup>
-            <RadioGroup
-              value={filters.selectedTimes[0] || ''}
-              onChange={(e) => {
-                const selected = e.target.value;
-                onFilterChange({ ...filters, selectedTimes: selected ? [selected] : [] });
-              }}
-            >
-              {TIME_RANGES.map((range) => (
-                <FormControlLabel
-                  key={range.value}
-                  value={range.value}
-                  control={<Radio size="small" />}
-                  label={range.label}
-                />
-              ))}
-            </RadioGroup>
-          </FormGroup>
+        <AccordionDetails sx={{ px: 1, pb: 2 }}>
+          <Slider
+            value={localTimeRange}
+            onChange={handleTimeChange}
+            onChangeCommitted={handleTimeCommitted}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(val) => minutesToTime(val)}
+            min={0}
+            max={1440}
+            step={30}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+            <Typography variant="body2" fontWeight="bold">
+              {minutesToTime(localTimeRange[0])}
+            </Typography>
+            <Typography variant="body2" fontWeight="bold">
+              {minutesToTime(localTimeRange[1])}
+            </Typography>
+          </Box>
         </AccordionDetails>
       </Accordion>
 
@@ -176,7 +245,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </AccordionDetails>
       </Accordion>
 
-      {/* 4. BUS TYPE */}
+      {/* 4. BUS TYPE (UPDATED: Checkbox for Multi-Select) */}
       <Accordion
         defaultExpanded
         elevation={0}
@@ -190,22 +259,19 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>
           <FormGroup>
-            <RadioGroup
-              value={filters.selectedTypes[0] || ''}
-              onChange={(e) => {
-                const selected = e.target.value;
-                onFilterChange({ ...filters, selectedTypes: selected ? [selected] : [] });
-              }}
-            >
-              {availableBusTypes.map((type) => (
-                <FormControlLabel
-                  key={type}
-                  value={type}
-                  control={<Radio size="small" />}
-                  label={getBusTypeLabel(type)}
-                />
-              ))}
-            </RadioGroup>
+            {availableBusTypes.map((type) => (
+              <FormControlLabel
+                key={type}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={filters.selectedTypes.includes(type)}
+                    onChange={() => handleCheckboxChange('selectedTypes', type)}
+                  />
+                }
+                label={getBusTypeLabel(type)}
+              />
+            ))}
           </FormGroup>
         </AccordionDetails>
       </Accordion>

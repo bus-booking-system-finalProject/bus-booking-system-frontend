@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BusesApi } from '@/lib/api/BusesApi';
+import { BusesApi } from '@/lib/api/admin/BusesApi';
 import type { Bus, SeatDefinition } from '@/types/AdminTypes';
 
 export const busKeys = {

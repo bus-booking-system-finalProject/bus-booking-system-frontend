@@ -1,4 +1,3 @@
-import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 // 1. IMPORT MUI
@@ -35,7 +34,7 @@ const rootElement = document.getElementById('app');
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
-    <StrictMode>
+    <>
       {/* add theme provider */}
       <ThemeProvider theme={theme}>
         {/* CssBaseline giúp reset CSS trình duyệt và áp dụng nền mặc định từ theme */}
@@ -48,7 +47,7 @@ if (rootElement && !rootElement.innerHTML) {
           </AuthProvider>
         </TanStackQueryProvider.Provider>
       </ThemeProvider>
-    </StrictMode>,
+    </>,
   );
 }
 

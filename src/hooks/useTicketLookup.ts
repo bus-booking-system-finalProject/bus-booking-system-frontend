@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { lookupBooking } from '@/lib/api/TicketsApi';
-import type { GuestLookupRequest, BookingResponse } from '@/types/tickets';
+import type { GuestLookupRequest, TicketLookupResponse } from '@/types/tickets';
 
 export const useTicketLookup = () => {
   const [formData, setFormData] = useState<GuestLookupRequest>({
@@ -9,7 +9,7 @@ export const useTicketLookup = () => {
     verificationValue: '',
   });
 
-  const [ticket, setTicket] = useState<BookingResponse | null>(null);
+  const [ticket, setTicket] = useState<TicketLookupResponse | null>(null);
 
   const mutation = useMutation({
     mutationFn: lookupBooking,

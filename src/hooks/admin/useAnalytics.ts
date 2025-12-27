@@ -1,7 +1,7 @@
 // src/hooks/admin/useAnalytics.ts
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import * as AnalyticsApi from '@/lib/api/AnalyticsApi';
+import * as AnalyticsApi from '@/lib/api/admin/AnalyticsApi';
 import type { AnalyticsParams } from '@/types/analytics';
 
 export const useAnalytics = (params: AnalyticsParams) => {

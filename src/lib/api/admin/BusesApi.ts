@@ -1,5 +1,5 @@
 // src/lib/api/BusesApi.ts
-import { apiPrivate } from './axios';
+import { apiPrivate } from '@/lib/api/axios';
 import type { Bus, SeatDefinition, ApiResponse } from '@/types/AdminTypes';
 
 export const BusesApi = {

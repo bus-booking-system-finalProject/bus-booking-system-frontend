@@ -1,11 +1,11 @@
 import React from 'react';
 import { Paper, Box, Typography, Stack } from '@mui/material';
 import { LocationOn, RadioButtonChecked } from '@mui/icons-material';
-import { type Trip } from '@/types/trip';
+import { type Trip } from '@/types/TripTypes';
 
 const TripSchedule: React.FC<{ trip: Trip }> = ({ trip }) => {
-  const departure = trip?.schedule?.departureTime;
-  const arrival = trip?.schedule?.arrivalTime;
+  const departure = trip?.schedules?.departureTime;
+  const arrival = trip?.schedules?.arrivalTime;
   const origin = trip?.route?.origin;
   const destination = trip?.route?.destination;
 

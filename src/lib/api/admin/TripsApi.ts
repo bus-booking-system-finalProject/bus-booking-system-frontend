@@ -1,5 +1,5 @@
 // src/lib/api/TripsApi.ts
-import { apiPrivate, apiClient } from './axios';
+import { apiPrivate, apiClient } from '@/lib/api/axios';
 import type {
   Trip,
   TripSearchRequest,

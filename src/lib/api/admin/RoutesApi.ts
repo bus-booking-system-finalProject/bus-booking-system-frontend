@@ -1,5 +1,4 @@
-// src/lib/api/RoutesApi.ts
-import { apiPrivate } from './axios';
+import { apiPrivate } from '@/lib/api/axios';
 import type { Route, ApiResponse } from '@/types/AdminTypes';
 
 export const RoutesApi = {
