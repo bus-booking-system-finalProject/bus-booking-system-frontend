@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
   Box,
@@ -23,8 +23,8 @@ import {
   Close,
 } from '@mui/icons-material';
 
-// --- DATA ---
-// Display names (kept for UI) — these are the previous province names users expect to see
+// --- DATA & CONSTANTS ---
+const STORAGE_KEY = 'search-widget-state';
 const PROVINCES = [
   'Hồ Chí Minh',
   'Hà Nội',
@@ -62,8 +62,6 @@ const PROVINCES = [
   'Bình Phước',
 ];
 
-// Map displayed province name -> backend province identifier/value
-// Keep this mapping up-to-date if backend keys change. We default to the displayed value when no mapping exists.
 const PROVINCE_BACKEND_MAP: Record<string, string> = {
   'Hồ Chí Minh': 'Ho Chi Minh City',
   'Hà Nội': 'Hanoi',
@@ -101,7 +99,13 @@ const PROVINCE_BACKEND_MAP: Record<string, string> = {
   'Bình Phước': 'Binh Phuoc',
 };
 
+const BACKEND_TO_DISPLAY: Record<string, string> = Object.fromEntries(
+  Object.entries(PROVINCE_BACKEND_MAP).map(([display, backend]) => [backend, display]),
+);
+
 // --- HELPERS ---
+const getTodayString = () => new Date().toISOString().split('T')[0];
+
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -113,27 +117,70 @@ const formatDate = (dateString: string | null) => {
   }).format(date);
 };
 
-const getTodayString = () => new Date().toISOString().split('T')[0];
+const getInitialState = () => {
+  const params = new URLSearchParams(window.location.search);
+  const urlOrigin = params.get('origin');
+  const urlDest = params.get('destination');
+  const urlDate = params.get('date');
+  const urlReturn = params.get('returnDate');
 
-interface LocationAutocompleteProps {
-  icon: React.ReactNode;
-  value: string | null;
-  onChange: (newValue: string | null) => void;
-}
+  if (urlOrigin || urlDest || urlDate) {
+    return {
+      origin:
+        BACKEND_TO_DISPLAY[urlOrigin || ''] || (urlOrigin ? decodeURIComponent(urlOrigin) : null),
+      destination:
+        BACKEND_TO_DISPLAY[urlDest || ''] || (urlDest ? decodeURIComponent(urlDest) : null),
+      departDate: urlDate || '',
+      returnDate: urlReturn || '',
+    };
+  }
 
-const BannerTab = ({
-  label,
-  icon,
-  isActive,
-  badgeText,
-  onClick,
-}: {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      const today = getTodayString();
+      return {
+        origin: parsed.origin || null,
+        destination: parsed.destination || null,
+        departDate: parsed.departDate >= today ? parsed.departDate : '',
+        returnDate: parsed.returnDate >= today ? parsed.returnDate : '',
+      };
+    } catch (e) {
+      console.error('Failed to parse search state', e);
+    }
+  }
+
+  return { origin: null, destination: null, departDate: '', returnDate: '' };
+};
+
+// --- INTERFACES ---
+interface BannerTabProps {
   label: string;
   icon: React.ReactNode;
   isActive: boolean;
   badgeText?: string;
   onClick: () => void;
-}) => (
+}
+
+interface BannerInputProps {
+  icon: React.ReactNode;
+  placeholder: string;
+  value?: string;
+  isLast?: boolean;
+  showDivider?: boolean;
+  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+}
+
+interface LocationAutocompleteProps {
+  icon: React.ReactNode;
+  value: string | null;
+  onChange: (newValue: string | null) => void;
+  inputRef?: React.Ref<HTMLInputElement>;
+}
+
+// --- SUB-COMPONENTS ---
+const BannerTab = ({ label, icon, isActive, badgeText, onClick }: BannerTabProps) => (
   <Box
     onClick={onClick}
     sx={{
@@ -180,24 +227,10 @@ const BannerInput = ({
   isLast = false,
   showDivider = true,
   onClick,
-}: {
-  icon: React.ReactNode;
-  placeholder: string;
-  value?: string;
-  isLast?: boolean;
-  showDivider?: boolean;
-  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
-}) => (
+}: BannerInputProps) => (
   <Box
     onClick={onClick}
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      flex: 1,
-      py: 1,
-      cursor: 'pointer',
-      minWidth: 0,
-    }}
+    sx={{ display: 'flex', alignItems: 'center', flex: 1, py: 1, cursor: 'pointer', minWidth: 0 }}
   >
     <Box sx={{ mr: 1.5, display: 'flex', alignItems: 'center' }}>{icon}</Box>
     <Box sx={{ flex: 1, overflow: 'hidden' }}>
@@ -208,11 +241,7 @@ const BannerInput = ({
         variant="body1"
         fontWeight={700}
         color={value ? 'text.primary' : 'text.disabled'}
-        sx={{
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
+        sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
       >
         {value || 'Chọn...'}
       </Typography>
@@ -227,18 +256,19 @@ const BannerInput = ({
   </Box>
 );
 
-const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value, onChange }) => (
+const LocationAutocomplete = ({ icon, value, onChange, inputRef }: LocationAutocompleteProps) => (
   <Autocomplete
     options={PROVINCES}
     value={value}
     onChange={(_e, newValue) => onChange(newValue)}
     autoHighlight
-    disablePortal
+    openOnFocus // FIX: This ensures the dropdown opens when focused via handleOriginChange
     renderInput={(params) => (
       <TextField
         {...params}
-        placeholder="Chọn tỉnh..."
+        placeholder="Chọn tỉnh thành..."
         variant="standard"
+        inputRef={inputRef}
         InputProps={{
           ...params.InputProps,
           disableUnderline: true,
@@ -249,17 +279,8 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
           ),
         }}
         sx={{
-          '& .MuiInputBase-root': {
-            height: '100%',
-            py: 1,
-            fontWeight: 700,
-            fontSize: '1.0rem',
-            color: value ? 'text.primary' : 'text.disabled',
-          },
-          '& input': {
-            cursor: 'pointer',
-            textOverflow: 'ellipsis',
-          },
+          '& .MuiInputBase-root': { height: '100%', py: 1, fontWeight: 700, fontSize: '1rem' },
+          '& input': { cursor: 'pointer' },
         }}
       />
     )}
@@ -267,7 +288,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
       const { key, ...otherProps } = props;
       return (
         <Box component="li" key={key} {...otherProps}>
-          <LocationOn sx={{ mr: 1, color: 'text.secondary', fontSize: 15 }} />
+          <LocationOn sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
           {option}
         </Box>
       );
@@ -276,17 +297,43 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ icon, value
   />
 );
 
+// --- MAIN COMPONENT ---
 const SearchWidget: React.FC = () => {
   const navigate = useNavigate();
-
   const [activeTab, setActiveTab] = useState(0);
-  const [origin, setOrigin] = useState<string | null>(null);
-  const [destination, setDestination] = useState<string | null>(null);
-  const [departDate, setDepartDate] = useState<string>('');
-  const [returnDate, setReturnDate] = useState<string>('');
+
+  const [initial] = useState(() => getInitialState());
+  const [origin, setOrigin] = useState<string | null>(initial.origin);
+  const [destination, setDestination] = useState<string | null>(initial.destination);
+  const [departDate, setDepartDate] = useState<string>(initial.departDate);
+  const [returnDate, setReturnDate] = useState<string>(initial.returnDate);
 
   const departInputRef = useRef<HTMLInputElement>(null);
   const returnInputRef = useRef<HTMLInputElement>(null);
+  const destInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const stateToSave = { origin, destination, departDate, returnDate };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+  }, [origin, destination, departDate, returnDate]);
+
+  const handleOriginChange = (newValue: string | null) => {
+    setOrigin(newValue);
+    if (newValue) {
+      setTimeout(() => {
+        destInputRef.current?.focus(); // Focus combined with openOnFocus triggers the pane
+      }, 100);
+    }
+  };
+
+  const handleDestinationChange = (newValue: string | null) => {
+    setDestination(newValue);
+    if (newValue) {
+      setTimeout(() => {
+        departInputRef.current?.showPicker();
+      }, 100);
+    }
+  };
 
   const handleSwapLocation = () => {
     setOrigin(destination);
@@ -304,8 +351,6 @@ const SearchWidget: React.FC = () => {
       alert('Vui lòng chọn Điểm đi, Điểm đến và Ngày đi');
       return;
     }
-
-    // Map displayed province names to backend values when building the URL/search params
     const backendOrigin = PROVINCE_BACKEND_MAP[origin] || origin;
     const backendDestination = PROVINCE_BACKEND_MAP[destination] || destination;
 
@@ -334,7 +379,6 @@ const SearchWidget: React.FC = () => {
         boxShadow: '0px 10px 40px rgba(0,0,0,0.1)',
       }}
     >
-      {/* Tabs */}
       <Box
         sx={{
           display: 'flex',
@@ -343,7 +387,6 @@ const SearchWidget: React.FC = () => {
           pt: 2.5,
           borderBottom: '1px solid #f0f0f0',
           justifyContent: 'center',
-          alignItems: 'center',
         }}
       >
         <BannerTab
@@ -375,7 +418,6 @@ const SearchWidget: React.FC = () => {
         />
       </Box>
 
-      {/* Input Row */}
       <Box sx={{ p: 3 }}>
         <Box
           sx={{
@@ -388,7 +430,6 @@ const SearchWidget: React.FC = () => {
             alignItems: 'center',
           }}
         >
-          {/* 1. LOCATION SECTION */}
           <Box>
             <Paper
               variant="outlined"
@@ -401,9 +442,7 @@ const SearchWidget: React.FC = () => {
                 py: 0.5,
               }}
             >
-              {/* Origin */}
               <Box sx={{ flex: 1 }}>
-                {/* NEW LABEL HERE */}
                 <Typography
                   variant="caption"
                   color="text.secondary"
@@ -414,10 +453,9 @@ const SearchWidget: React.FC = () => {
                 <LocationAutocomplete
                   icon={<RadioButtonChecked color="primary" />}
                   value={origin}
-                  onChange={setOrigin}
+                  onChange={handleOriginChange}
                 />
               </Box>
-
               <IconButton
                 size="small"
                 sx={{ bgcolor: '#f5f5f5', border: '1px solid #eee', mx: 1 }}
@@ -425,10 +463,7 @@ const SearchWidget: React.FC = () => {
               >
                 <SwapHoriz fontSize="small" color="action" />
               </IconButton>
-
-              {/* Destination */}
               <Box sx={{ flex: 1 }}>
-                {/* NEW LABEL HERE */}
                 <Typography
                   variant="caption"
                   color="text.secondary"
@@ -439,13 +474,13 @@ const SearchWidget: React.FC = () => {
                 <LocationAutocomplete
                   icon={<LocationOn color="error" />}
                   value={destination}
-                  onChange={setDestination}
+                  onChange={handleDestinationChange}
+                  inputRef={destInputRef}
                 />
               </Box>
             </Paper>
           </Box>
 
-          {/* Dates */}
           <Box>
             <Paper
               variant="outlined"
@@ -518,11 +553,11 @@ const SearchWidget: React.FC = () => {
             </Paper>
           </Box>
 
-          {/* Button */}
           <Box>
             <Button
               fullWidth
               variant="contained"
+              onClick={handleSearch}
               sx={{
                 bgcolor: '#FFC107',
                 color: '#212121',
@@ -534,7 +569,6 @@ const SearchWidget: React.FC = () => {
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#ffca2c', boxShadow: 'none' },
               }}
-              onClick={handleSearch}
             >
               Tìm kiếm
             </Button>

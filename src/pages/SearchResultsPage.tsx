@@ -5,7 +5,7 @@ import { Box, Container, Stack, CircularProgress, Alert } from '@mui/material';
 import FilterSidebar, { type FilterState } from '@/components/search/FilterSidebar';
 import SortBar, { type SortOption } from '@/components/search/SortBar';
 import TripList from '@/components/search/TripList';
-import SearchWidget from '@/components/search/SearchWidget';
+import SearchWidget from '@/components/common/SearchWidget';
 
 // Router & Query
 import { useSearch, useNavigate } from '@tanstack/react-router';

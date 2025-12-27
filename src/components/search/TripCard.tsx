@@ -241,7 +241,7 @@ const TripCard: React.FC<TripCardProps> = ({
             <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
               {hasDiscount ? (
                 <>
-                  <Typography variant="h5" fontWeight={800} color="primary.main" lineHeight={1.2}>
+                  <Typography variant="h5" fontWeight={800} color="error.main" lineHeight={1.2}>
                     {formatCurrency(displayPrice)}
                   </Typography>
                   <Box
