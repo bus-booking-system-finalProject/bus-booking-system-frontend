@@ -106,7 +106,7 @@ export interface BookingResponse {
   ticketCode: string;
   // tripId might be at root or inside tripDetails depending on endpoint, keeping it optional here to be safe
   tripId?: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   seats: string[];
 
   // Contact Info (New)
@@ -168,7 +168,7 @@ export interface TicketHistoryItem {
   };
   seats: string[];
   totalAmount: number;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   createdAt: string;
 }
 
