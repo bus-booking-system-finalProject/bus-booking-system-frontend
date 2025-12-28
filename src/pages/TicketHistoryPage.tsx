@@ -22,6 +22,7 @@ import {
   ConfirmationNumber,
   EventSeat,
   History,
+  Flag, // Icon for Completed status
 } from '@mui/icons-material';
 import { getMyTickets, cancelTicket } from '@/lib/api/trips';
 import { useNavigate } from '@tanstack/react-router';
@@ -84,21 +85,27 @@ const TicketHistoryPage: React.FC = () => {
     });
   };
 
+  // UPDATED: Added logic for 'completed'
   const getStatusColor = (status: string): ChipProps['color'] => {
     switch (status) {
+      case 'completed':
+        return 'info'; // Blue/Purple for completed
       case 'confirmed':
-        return 'success';
+        return 'success'; // Green for paid/confirmed
       case 'pending':
-        return 'warning';
+        return 'warning'; // Orange for pending
       case 'cancelled':
-        return 'error';
+        return 'error'; // Red for cancelled
       default:
         return 'default';
     }
   };
 
+  // UPDATED: Added label for 'completed'
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'completed':
+        return 'Hoàn thành';
       case 'confirmed':
         return 'Đã thanh toán';
       case 'pending':
@@ -110,10 +117,26 @@ const TicketHistoryPage: React.FC = () => {
     }
   };
 
+  // Helper to determine border color based on status
+  const getBorderColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'info.main';
+      case 'confirmed':
+        return 'success.main';
+      case 'pending':
+        return 'warning.main';
+      case 'cancelled':
+        return 'error.main';
+      default:
+        return 'grey.300';
+    }
+  };
+
   // --- Handlers ---
   const handleViewTicket = (ticketId: string) => {
     navigate({
-      to: '/booking/checkout',
+      to: '/booking/details',
       search: { ticketId },
     });
   };
@@ -128,7 +151,7 @@ const TicketHistoryPage: React.FC = () => {
   const handlePayNow = (e: React.MouseEvent, ticketId: string) => {
     e.stopPropagation();
     navigate({
-      to: '/booking/checkout',
+      to: '/booking/details',
       search: { ticketId },
     });
   };
@@ -164,12 +187,7 @@ const TicketHistoryPage: React.FC = () => {
                   p: 3,
                   borderRadius: 2,
                   borderLeft: `6px solid`,
-                  borderColor:
-                    ticket.status === 'confirmed'
-                      ? 'success.main'
-                      : ticket.status === 'pending'
-                        ? 'warning.main'
-                        : 'error.main',
+                  borderColor: getBorderColor(ticket.status), // Use helper
                   cursor: 'pointer',
                   transition: 'transform 0.2s, box-shadow 0.2s',
                   '&:hover': {
@@ -255,6 +273,7 @@ const TicketHistoryPage: React.FC = () => {
                       </Typography>
                     </Box>
 
+                    {/* ACTIONS: Only for Pending */}
                     <Stack direction="row" spacing={1}>
                       {ticket.status === 'pending' && (
                         <Button
@@ -278,6 +297,17 @@ const TicketHistoryPage: React.FC = () => {
                         >
                           Thanh toán
                         </Button>
+                      )}
+
+                      {/* Optional: Add a visual indicator for completed trips, though clicking the card works */}
+                      {ticket.status === 'completed' && (
+                        <Typography
+                          variant="caption"
+                          color="info.main"
+                          sx={{ fontStyle: 'italic' }}
+                        >
+                          Chạm để xem chi tiết & đánh giá
+                        </Typography>
                       )}
                     </Stack>
                   </Stack>

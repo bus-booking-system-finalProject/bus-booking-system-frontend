@@ -15,7 +15,7 @@ const checkoutSearchSchema = z.object({
 
 export const bookingCheckoutRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/booking/checkout',
+  path: '/booking/details',
   validateSearch: (search) => checkoutSearchSchema.parse(search),
   component: BookingCheckoutPage,
 });
