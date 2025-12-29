@@ -12,6 +12,7 @@ import type {
   TicketHistoryResponse,
   CancelTicketResponse,
   OperatorReviewsResponse,
+  FeedbackResponse,
 } from '@/types/TripTypes';
 
 export interface SearchTripsParams {
@@ -152,6 +153,14 @@ export const getOperatorReviews = async (
     {
       params: { page, limit },
     },
+  );
+  return response.data.data;
+};
+
+export const getMyFeedback = async (tripId: string): Promise<FeedbackResponse | null> => {
+  const response = await apiPrivate.get<{ success: boolean; data: FeedbackResponse | null }>(
+    '/feedback/me',
+    { params: { tripId } },
   );
   return response.data.data;
 };

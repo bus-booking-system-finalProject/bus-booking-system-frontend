@@ -224,3 +224,12 @@ export interface OperatorReviewsResponse {
     page: number;
   };
 }
+
+export interface FeedbackResponse {
+  id: string;
+  tripId: string;
+  rating: number;
+  comment: string;
+  userEmail: string;
+  submittedAt: string;
+}
