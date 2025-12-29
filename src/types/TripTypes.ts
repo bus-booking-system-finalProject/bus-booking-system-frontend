@@ -106,7 +106,7 @@ export interface BookingResponse {
   ticketCode: string;
   // tripId might be at root or inside tripDetails depending on endpoint, keeping it optional here to be safe
   tripId?: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   seats: string[];
 
   // Contact Info (New)
@@ -139,9 +139,90 @@ export interface BookingResponse {
   confirmedAt?: string | null;
 }
 
+export interface LockSeatsRequest {
+  tripId: string;
+  seats: string[];
+  sessionId: string;
+}
+
+export interface LockSeatsResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface UnlockSeatsRequest {
+  tripId: string;
+  seats: string[];
+  sessionId: string;
+}
+
+export interface UnlockSeatsResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface TicketHistoryItem {
+  ticketId: string;
+  ticketCode: string;
+  trip: {
+    route: string;
+    departureTime: string;
+    operator: string;
+  };
+  seats: string[];
+  totalAmount: number;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  createdAt: string;
+}
+
+export interface TicketHistoryResponse {
+  success: boolean;
+  data: TicketHistoryItem[];
+  pagination: {
+    total: number;
+    limit: number;
+    totalPages: number;
+    page: number;
+  };
+}
+
+export interface CancelTicketResponse {
+  ticketId: string;
+  status: string;
+  refund: {
+    amount: number;
+    percentage: number;
+    status: string;
+    processingTime: string | null;
+    refundMethod: string | null;
+  };
+  cancelledAt: string;
+}
+
 export interface StopPoint {
   stopId: string;
   name: string;
   address: string;
   time: string;
+}
+
+export interface Review {
+  id: string;
+  tripId: string;
+  rating: number;
+  comment: string;
+  userEmail: string;
+  submittedAt: string;
+}
+
+export interface OperatorReviewsResponse {
+  averageRating: number;
+  totalReviews: number;
+  reviews: Review[];
+  pagination: {
+    total: number;
+    limit: number;
+    totalPages: number;
+    page: number;
+  };
 }

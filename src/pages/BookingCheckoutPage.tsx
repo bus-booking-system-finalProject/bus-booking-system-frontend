@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearch } from '@tanstack/react-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // 1. Import Mutation hooks
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Container,
@@ -12,6 +12,12 @@ import {
   Alert,
   CircularProgress,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Rating,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -26,9 +32,12 @@ import {
   LocationOn,
   Timer,
   Payment,
+  Flag, // Icon for Completed
+  RateReview, // Icon for Review
 } from '@mui/icons-material';
 import { getBookingById, cancelTicket } from '@/lib/api/trips';
 import { PayOsPayment } from '@/lib/api/PaymentApi';
+import { apiPrivate } from '@/lib/api/axios'; // Ensure apiPrivate is imported
 import { bookingCheckoutRoute } from '@/routes/BookingCheckoutRoute';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,14 +48,25 @@ interface ApiErrorResponse {
   message: string;
 }
 
+interface FeedbackPayload {
+  tripId: string;
+  rating: number;
+  comment: string;
+}
+
 const BookingCheckoutPage: React.FC = () => {
-  const { ticketId, code, status, cancel } = useSearch({ from: bookingCheckoutRoute.id });
-  const { accessToken } = useAuth(); // 4. Get Access Token
+  const { ticketId, code, status } = useSearch({ from: bookingCheckoutRoute.id });
+  const { accessToken } = useAuth(); // Get Access Token for review
   const queryClient = useQueryClient();
 
-  // 1. STATE: We only track "now". We don't track "timeLeft" in state anymore.
+  // 1. STATE
   const [now, setNow] = useState(0);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  // Review Dialog State
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [rating, setRating] = useState<number | null>(5);
+  const [comment, setComment] = useState('');
 
   const {
     data: booking,
@@ -58,10 +78,15 @@ const BookingCheckoutPage: React.FC = () => {
     enabled: !!ticketId,
   });
 
-  // --- PAYMENT MUTATION ---
+  // --- API: Submit Feedback ---
+  const submitFeedback = async (payload: FeedbackPayload) => {
+    const response = await apiPrivate.post('/feedback', payload);
+    return response.data;
+  };
+
+  // --- MUTATION: Payment ---
   const paymentMutation = useMutation({
     mutationFn: async () => {
-      // Construct the return URL to be the current page
       const currentUrl = `${window.location.origin}${window.location.pathname}?ticketId=${ticketId}`;
 
       return PayOsPayment.createPaymentLink({
@@ -72,7 +97,6 @@ const BookingCheckoutPage: React.FC = () => {
     },
     onSuccess: (data) => {
       if (data.success && data.checkoutUrl) {
-        // Redirect user to PayOS
         window.location.href = data.checkoutUrl;
       } else {
         alert('Không thể tạo liên kết thanh toán. Vui lòng thử lại.');
@@ -84,12 +108,11 @@ const BookingCheckoutPage: React.FC = () => {
     },
   });
 
-  // --- CANCEL MUTATION ---
+  // --- MUTATION: Cancel ---
   const cancelMutation = useMutation({
     mutationFn: () => cancelTicket(ticketId),
     onSuccess: () => {
       alert('Hủy vé thành công!');
-      // Refresh the booking data to show "Cancelled" status immediately
       queryClient.invalidateQueries({ queryKey: ['booking', ticketId] });
     },
     onError: (error: AxiosError<ApiErrorResponse>) => {
@@ -98,39 +121,46 @@ const BookingCheckoutPage: React.FC = () => {
     },
   });
 
+  // --- MUTATION: Feedback ---
+  const feedbackMutation = useMutation({
+    mutationFn: submitFeedback,
+    onSuccess: () => {
+      setIsReviewOpen(false);
+      alert('Cảm ơn bạn đã đánh giá chuyến đi!');
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      const msg = error.response?.data?.message || 'Lỗi khi gửi đánh giá.';
+      alert(msg);
+    },
+  });
+
   // --- HANDLE PAYMENT RETURN ---
   useEffect(() => {
     let timer: NodeJS.Timeout;
-
-    // If we have returned from payment gateway with success code
     if (code === '00' && status === 'PAID') {
       timer = setTimeout(() => {
         setShowSuccessToast(true);
         queryClient.invalidateQueries({ queryKey: ['booking', ticketId] });
       }, 0);
-    } else if (cancel === true) {
-      // Handle cancelled payment if necessary
     }
-
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [code, status, cancel, ticketId, queryClient]);
+  }, [code, status, ticketId, queryClient]);
 
-  // 2. EFFECT: Just keeps the clock ticking. No complex logic here.
+  // 2. EFFECT: Clock ticking
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
-  // 3. DERIVED STATE: Calculate Expiration and TimeLeft during render.
+  // 3. DERIVED STATE: Calculate Expiration (Preserved Logic)
   const expirationTime = useMemo(() => {
+    // Only calculate if pending
     if (booking?.status === 'pending' && booking.createdAt) {
       let dateStr = booking.createdAt;
-      // Timezone fix
       if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
         dateStr += 'Z';
       }
@@ -140,7 +170,6 @@ const BookingCheckoutPage: React.FC = () => {
     return null;
   }, [booking]);
 
-  // Calculate milliseconds left
   const msLeft = expirationTime ? expirationTime - now : 0;
   const timeLeft = msLeft > 0 ? msLeft : 0;
 
@@ -183,7 +212,7 @@ const BookingCheckoutPage: React.FC = () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // --- Handler ---
+  // --- Handlers ---
   const handleCancelClick = () => {
     if (window.confirm('Bạn có chắc chắn muốn hủy vé này không?')) {
       cancelMutation.mutate();
@@ -192,6 +221,20 @@ const BookingCheckoutPage: React.FC = () => {
 
   const handlePaymentClick = () => {
     paymentMutation.mutate();
+  };
+
+  const handleSubmitReview = () => {
+    // Determine tripId from nested object or root
+    const tripId = booking?.tripDetails?.tripId || booking?.tripId;
+    if (!tripId) {
+      alert('Không tìm thấy thông tin chuyến đi.');
+      return;
+    }
+    feedbackMutation.mutate({
+      tripId: tripId,
+      rating: rating || 5,
+      comment: comment,
+    });
   };
 
   if (isLoading)
@@ -203,11 +246,34 @@ const BookingCheckoutPage: React.FC = () => {
 
   if (isError || !booking) return <Alert severity="error">Không tìm thấy thông tin vé.</Alert>;
 
-  // Determine Logic
-  const isPaid = booking.status === 'confirmed';
+  // --- STATUS LOGIC (Updated for 2 new statuses) ---
+  const isCompleted = booking.status === 'completed'; // New
+  const isConfirmed = booking.status === 'confirmed'; // New Name for Paid
   const isCancelled = booking.status === 'cancelled';
-  const isExpired = timeLeft === 0 && booking.status === 'pending';
-  const isInteractionDisabled = isCancelled || isExpired;
+  const isPending = booking.status === 'pending';
+  const isExpired = isPending && timeLeft === 0;
+
+  // Interaction Logic: Can't cancel if completed, cancelled or expired
+  const isInteractionDisabled = isCancelled || isExpired || isCompleted;
+
+  // UI Variables based on status
+  let statusColor = 'warning.main';
+  let StatusIcon = Payment;
+  let statusText = 'Chờ thanh toán';
+
+  if (isCancelled) {
+    statusColor = 'error.main';
+    StatusIcon = Cancel;
+    statusText = 'Vé đã bị hủy';
+  } else if (isCompleted) {
+    statusColor = 'info.main';
+    StatusIcon = Flag;
+    statusText = 'Chuyến đi đã hoàn thành';
+  } else if (isConfirmed) {
+    statusColor = 'success.main';
+    StatusIcon = CheckCircle;
+    statusText = 'Thanh toán thành công';
+  }
 
   return (
     <Box sx={{ bgcolor: '#f4f6f8', minHeight: '100vh', pb: 10 }}>
@@ -217,7 +283,7 @@ const BookingCheckoutPage: React.FC = () => {
           Quay lại
         </Button>
         <Typography variant="h4" fontWeight={700} gutterBottom>
-          Thanh toán vé
+          Chi tiết vé
         </Typography>
 
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="flex-start">
@@ -226,37 +292,13 @@ const BookingCheckoutPage: React.FC = () => {
             <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
               {/* Status Header */}
               <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                {isCancelled ? (
-                  <Cancel color="error" sx={{ fontSize: 40 }} />
-                ) : isPaid ? (
-                  <CheckCircle color="success" sx={{ fontSize: 40 }} />
-                ) : (
-                  <Payment color="warning" sx={{ fontSize: 40 }} />
-                )}
-
+                <StatusIcon sx={{ fontSize: 40, color: statusColor }} />
                 <Box>
-                  <Typography
-                    variant="h6"
-                    fontWeight={700}
-                    color={isCancelled ? 'error.main' : isPaid ? 'success.main' : 'warning.main'}
-                  >
-                    {isCancelled
-                      ? 'Vé đã bị hủy'
-                      : isPaid
-                        ? 'Thanh toán thành công'
-                        : 'Chờ thanh toán'}
+                  <Typography variant="h6" fontWeight={700} sx={{ color: statusColor }}>
+                    {statusText}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Mã vé: <b>{booking.ticketCode}</b> • Trạng thái:{' '}
-                    <span
-                      style={{
-                        color: isCancelled ? '#d32f2f' : isPaid ? '#2e7d32' : '#ed6c02',
-                        fontWeight: 'bold',
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {isCancelled ? 'Đã hủy' : isPaid ? 'Đã thanh toán' : 'Chờ thanh toán'}
-                    </span>
+                    Mã vé: <b>{booking.ticketCode}</b>
                   </Typography>
                 </Box>
               </Stack>
@@ -282,16 +324,21 @@ const BookingCheckoutPage: React.FC = () => {
               </Stack>
             </Paper>
 
-            {/* Alert / Countdown Area */}
+            {/* Dynamic Alert Banner */}
             {isCancelled ? (
               <Alert severity="error" icon={<Cancel />}>
                 Vé này đã bị hủy.
               </Alert>
-            ) : isPaid ? (
+            ) : isCompleted ? (
+              <Alert severity="info" icon={<Flag />}>
+                Chuyến đi đã kết thúc. Hy vọng bạn đã có trải nghiệm tuyệt vời!
+              </Alert>
+            ) : isConfirmed ? (
               <Alert severity="success" icon={<CheckCircle />}>
                 Bạn đã thanh toán vé thành công. Chúc bạn có một chuyến đi vui vẻ!
               </Alert>
             ) : (
+              // Pending Status
               <Alert
                 severity="warning"
                 icon={<Timer />}
@@ -311,15 +358,17 @@ const BookingCheckoutPage: React.FC = () => {
                       ? 'Đã hết thời gian giữ ghế. Vui lòng đặt vé lại.'
                       : 'Vui lòng hoàn tất thanh toán để giữ ghế.'}
                   </Typography>
-                  <Typography variant="subtitle1" fontWeight={800} color="warning.dark">
-                    {formatCountdown(timeLeft)}
-                  </Typography>
+                  {!isExpired && (
+                    <Typography variant="subtitle1" fontWeight={800} color="warning.dark">
+                      {formatCountdown(timeLeft)}
+                    </Typography>
+                  )}
                 </Stack>
               </Alert>
             )}
           </Box>
 
-          {/* RIGHT: TRIP SUMMARY & CHECKOUT */}
+          {/* RIGHT: TRIP SUMMARY & ACTIONS */}
           <Box sx={{ width: { xs: '100%', md: '400px' }, flexShrink: 0 }}>
             <Paper sx={{ p: 3, borderRadius: 2, bgcolor: '#fff', position: 'sticky', top: 24 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>
@@ -404,7 +453,20 @@ const BookingCheckoutPage: React.FC = () => {
 
               {/* ACTION BUTTONS */}
               <Stack spacing={2}>
-                {!isPaid && !isCancelled && !isExpired && (
+                {/* 1. Review Button (Completed & Logged In) */}
+                {isCompleted && accessToken && (
+                  <Button
+                    variant="contained"
+                    startIcon={<RateReview />}
+                    onClick={() => setIsReviewOpen(true)}
+                    sx={{ bgcolor: '#9c27b0', '&:hover': { bgcolor: '#7b1fa2' } }}
+                  >
+                    Viết đánh giá
+                  </Button>
+                )}
+
+                {/* 2. Payment Button (Only if Pending & Not Expired) */}
+                {isPending && !isExpired && (
                   <Button
                     variant="contained"
                     size="large"
@@ -425,18 +487,24 @@ const BookingCheckoutPage: React.FC = () => {
                   </Button>
                 )}
 
-                {isPaid && (
+                {/* 3. Static Status Buttons */}
+                {isConfirmed && (
                   <Button variant="contained" color="success" fullWidth size="large" disabled>
                     Đã thanh toán
                   </Button>
                 )}
-
+                {isCompleted && (
+                  <Button variant="outlined" color="info" fullWidth size="large" disabled>
+                    Hoàn thành
+                  </Button>
+                )}
                 {(isExpired || isCancelled) && (
                   <Button variant="contained" disabled fullWidth size="large">
                     {isCancelled ? 'Vé đã hủy' : 'Hết thời gian'}
                   </Button>
                 )}
 
+                {/* 4. Cancel Button (Only if NOT cancelled/completed/expired) */}
                 {!isInteractionDisabled && (
                   <Button
                     variant="outlined"
@@ -445,10 +513,7 @@ const BookingCheckoutPage: React.FC = () => {
                     fullWidth
                     disabled={cancelMutation.isPending}
                     onClick={handleCancelClick}
-                    sx={{
-                      fontWeight: 600,
-                      py: 1.2,
-                    }}
+                    sx={{ fontWeight: 600, py: 1.2 }}
                   >
                     {cancelMutation.isPending ? 'Đang hủy...' : 'Hủy vé'}
                   </Button>
@@ -458,6 +523,45 @@ const BookingCheckoutPage: React.FC = () => {
           </Box>
         </Stack>
       </Container>
+
+      {/* FEEDBACK DIALOG */}
+      <Dialog open={isReviewOpen} onClose={() => setIsReviewOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Đánh giá chuyến đi</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Typography component="legend">Mức độ hài lòng</Typography>
+              <Rating
+                name="rating"
+                value={rating}
+                onChange={(_, newValue) => setRating(newValue)}
+                size="large"
+              />
+            </Box>
+            <TextField
+              label="Nhận xét của bạn"
+              multiline
+              rows={4}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Chia sẻ trải nghiệm của bạn về chuyến đi này..."
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsReviewOpen(false)} color="inherit">
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSubmitReview}
+            variant="contained"
+            disabled={!rating || feedbackMutation.isPending}
+          >
+            {feedbackMutation.isPending ? 'Đang gửi...' : 'Gửi đánh giá'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* SUCCESS TOAST */}
       <Snackbar

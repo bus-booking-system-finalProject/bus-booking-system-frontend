@@ -77,7 +77,7 @@ export interface TicketHistoryItem {
   };
   seats: string[];
   totalAmount: number;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   createdAt: string;
 }
 

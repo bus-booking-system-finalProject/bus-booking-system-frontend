@@ -9,7 +9,6 @@ import { tripRoute } from './routes/admin/TripRoute.tsx';
 import { routeRoute } from './routes/admin/RouteRoute.tsx';
 import { operatorRoute } from './routes/admin/OperatorRoute.tsx';
 import { busRoute } from './routes/admin/BusRoute.tsx';
-import { tripDetailRoute } from './routes/tripDetailRoute.tsx';
 import { bookingCheckoutRoute } from './routes/BookingCheckoutRoute.tsx';
 import { findTicketRoute } from './routes/FindTicketRoute.tsx';
 import { historyRoute } from './routes/HistoryRoute.tsx';
@@ -22,7 +21,6 @@ export const routeTree = rootRoute.addChildren([
   indexRoute.addChildren([
     HomeRoute,
     oauthCallbackRoute,
-    tripDetailRoute,
     bookingConfirmationRoute,
     bookingCheckoutRoute,
     bookingPaymentRoute,

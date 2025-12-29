@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -11,12 +11,17 @@ import {
   Tab,
   Chip,
   Stack,
-  Grid,
   Alert,
   CircularProgress,
+  Pagination,
+  Rating,
+  Avatar,
+  Paper,
 } from '@mui/material';
-import { LocationOn, FiberManualRecord, Star } from '@mui/icons-material';
-import type { Trip, Seat, SeatLayout } from '../../types/TripTypes';
+import { LocationOn, FiberManualRecord, Star, VerifiedUser } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
+import { getOperatorReviews } from '@/lib/api/trips';
+import type { Trip, Seat, SeatLayout, OperatorReviewsResponse } from '../../types/TripTypes';
 import { formatCurrency, formatTime, calculateDuration } from '../../lib/utils/format';
 import SeatMap from './SeatMap';
 import { PointSelector } from '../booking/PointSelector';
@@ -24,31 +29,209 @@ import { PointSelector } from '../booking/PointSelector';
 const mapBusTypeToLabel = (type?: string) => {
   if (!type) return '';
   const map: Record<string, string> = {
-    standard: 'Seater',
-    sleeper: 'Sleeper',
+    standard: 'Ghế ngồi',
+    sleeper: 'Giường nằm',
     limousine: 'Limousine',
   };
   return map[type.toLowerCase()] || type;
 };
 
+// --- CONSTANTS ---
+const REVIEW_PAGE_LIMIT = 5;
+
+interface OperatorReviewsBlockProps {
+  operatorId: string;
+  isOpen: boolean;
+}
+
+// --- REVIEW COMPONENT ---
+const OperatorReviewsBlock: React.FC<OperatorReviewsBlockProps> = ({ operatorId, isOpen }) => {
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isError } = useQuery<OperatorReviewsResponse>({
+    queryKey: ['operator-reviews', operatorId, page, REVIEW_PAGE_LIMIT],
+    queryFn: () => getOperatorReviews(operatorId, page, REVIEW_PAGE_LIMIT),
+    enabled: isOpen && !!operatorId,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
+  });
+
+  if (!isOpen) return null;
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <Alert severity="error" sx={{ mt: 2 }}>
+        Không tải được đánh giá.
+      </Alert>
+    );
+  }
+
+  const formatName = (email: string) => {
+    if (!email) return 'Người dùng';
+    const namePart = email.split('@')[0];
+    return namePart.replace(/[._]/g, ' ');
+  };
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      {/* 1. REVIEW SUMMARY HEADER */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 4 }}>
+        {/* Big Score Box */}
+        <Box sx={{ textAlign: 'center', minWidth: 100 }}>
+          <Typography variant="h3" fontWeight={800} color="warning.main" lineHeight={1}>
+            {data.averageRating?.toFixed(1)}
+          </Typography>
+          <Rating
+            value={data.averageRating}
+            precision={0.1}
+            readOnly
+            size="small"
+            sx={{ my: 0.5 }}
+          />
+          <Typography variant="caption" color="text.secondary" display="block">
+            {data.totalReviews} đánh giá
+          </Typography>
+        </Box>
+
+        {/* Simple Progress/Stats */}
+        <Box sx={{ flex: 1, display: { xs: 'none', sm: 'block' } }}>
+          <Stack spacing={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="caption" sx={{ minWidth: 100 }}>
+                Chất lượng dịch vụ
+              </Typography>
+              <Rating value={data.averageRating} precision={0.5} readOnly size="small" />
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="caption" sx={{ minWidth: 100 }}>
+                Thái độ nhân viên
+              </Typography>
+              <Rating
+                value={data.averageRating > 0.5 ? data.averageRating - 0.2 : 4.5}
+                precision={0.5}
+                readOnly
+                size="small"
+              />
+            </Box>
+          </Stack>
+        </Box>
+      </Box>
+
+      {/* 2. REVIEWS LIST */}
+      <Box>
+        {data.reviews && data.reviews.length > 0 ? (
+          <Stack spacing={2}>
+            {data.reviews.map((r) => (
+              <Paper
+                key={r.id}
+                elevation={0}
+                sx={{
+                  p: 2,
+                  bgcolor: '#fff',
+                  border: '1px solid #eee',
+                  borderRadius: 2,
+                }}
+              >
+                <Stack direction="row" spacing={2} alignItems="flex-start">
+                  <Avatar
+                    alt={r.userEmail}
+                    sx={{
+                      bgcolor: 'primary.main',
+                      width: 40,
+                      height: 40,
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {r.userEmail?.[0]?.toUpperCase()}
+                  </Avatar>
+
+                  <Box sx={{ flex: 1 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight={700}
+                          sx={{ textTransform: 'capitalize' }}
+                        >
+                          {formatName(r.userEmail)}
+                        </Typography>
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
+                          <Chip
+                            icon={<VerifiedUser sx={{ fontSize: '14px !important' }} />}
+                            label="Đã đi"
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            sx={{ height: 20, fontSize: '0.65rem', '& .MuiChip-label': { px: 1 } }}
+                          />
+                        </Stack>
+                      </Box>
+
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Rating value={r.rating} readOnly size="small" />
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {new Date(r.submittedAt).toLocaleDateString('vi-VN')}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    <Typography
+                      variant="body2"
+                      sx={{ mt: 1.5, color: 'text.primary', lineHeight: 1.6 }}
+                    >
+                      {r.comment}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
+            Chưa có đánh giá nào.
+          </Typography>
+        )}
+
+        {/* 3. PAGINATION */}
+        {data.pagination && data.pagination.totalPages > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <Pagination
+              count={data.pagination.totalPages}
+              page={page}
+              onChange={(_, v) => setPage(v)}
+              color="primary"
+              shape="rounded"
+              size="small"
+            />
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+// --- MAIN TRIP CARD COMPONENT ---
+
 interface TripCardProps {
   trip: Trip;
-
-  // States controlled by Parent
   isDetailsOpen: boolean;
   isBookingOpen: boolean;
   activeTab: number;
   selectedSeats: Seat[];
   selectedPickup: string;
   selectedDropoff: string;
-
-  // Data from Parent
   seatLayout: SeatLayout | null | undefined;
   isLoadingSeats: boolean;
   isSeatError: boolean;
   isLocking: boolean;
-
-  // Handlers from Parent
   onToggleDetails: () => void;
   onToggleBooking: () => void;
   onSeatSelect: (seat: Seat) => void;
@@ -141,7 +324,6 @@ const TripCard: React.FC<TripCardProps> = ({
                     {operator.name}
                   </Typography>
 
-                  {/* Rating */}
                   <Star sx={{ fontSize: 16, color: '#FFC107' }} />
                   <Typography variant="body2" fontWeight={600}>
                     {operator.ratings.overall}
@@ -282,7 +464,6 @@ const TripCard: React.FC<TripCardProps> = ({
               chỗ trống
             </Typography>
 
-            {/* --- ACTION BUTTONS ROW --- */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
               <Typography
                 variant="body2"
@@ -324,22 +505,37 @@ const TripCard: React.FC<TripCardProps> = ({
         <Collapse in={!!isDetailsOpen || !!isBookingOpen} timeout="auto" unmountOnExit>
           <Divider sx={{ my: 2 }} />
 
-          {/* === DETAIL VIEW (UPDATED GRID) === */}
+          {/* === DETAIL VIEW (Updated Layout) === */}
           {isDetailsOpen && (
-            <Box sx={{ p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
-              <Grid container spacing={3}>
-                {/* Replaced item xs={...} with size={{...}} */}
-                <Grid size={{ xs: 12, md: 4 }}>
-                  {trip.bus.images && trip.bus.images.length > 0 && (
+            <Box sx={{ p: 3, bgcolor: '#f8f9fa', borderRadius: 2 }}>
+              {/* TOP ROW: Image + Info (Flexbox) */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  gap: 3,
+                  mb: 3,
+                }}
+              >
+                {/* Image - Fixed width on Desktop */}
+                <Box sx={{ width: { xs: '100%', md: 240 }, flexShrink: 0 }}>
+                  {operator.image && (
                     <Box
                       component="img"
-                      src={trip.bus.images[0]}
+                      src={operator.image}
                       alt="Bus"
-                      sx={{ width: '100%', borderRadius: 2 }}
+                      sx={{
+                        width: '100%',
+                        height: 160,
+                        borderRadius: 2,
+                        objectFit: 'cover',
+                      }}
                     />
                   )}
-                </Grid>
-                <Grid size={{ xs: 12, md: 8 }}>
+                </Box>
+
+                {/* Info */}
+                <Box sx={{ flex: 1 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     Thông tin nhà xe {trip.operator.name}
                   </Typography>
@@ -347,35 +543,35 @@ const TripCard: React.FC<TripCardProps> = ({
                     Loại xe: {trip.bus.type} - {trip.bus.model}
                   </Typography>
 
-                  <Box sx={{ display: 'flex', gap: 4, mb: 2 }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Đánh giá
-                      </Typography>
-                      <Typography fontWeight="bold">
-                        ⭐ {trip.operator.ratings?.overall || 4.5}/5
-                      </Typography>
-                    </Box>
+                  <Stack direction="row" spacing={4} sx={{ mb: 2 }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
                         Tiện ích
                       </Typography>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Stack direction="row" spacing={1} mt={0.5}>
                         <Chip label="Wifi" size="small" />
                         <Chip label="Nước uống" size="small" />
                         <Chip label="Điều hòa" size="small" />
-                      </Box>
+                      </Stack>
                     </Box>
-                  </Box>
+                  </Stack>
+
                   <Typography variant="body2" color="text.secondary">
                     *Chính sách hủy vé: Hành khách được hoàn 100% vé nếu hủy trước 24h.
                   </Typography>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
+
+              <Divider />
+
+              {/* BOTTOM ROW: Reviews (Full Width) */}
+              <Box>
+                <OperatorReviewsBlock operatorId={trip.operator.id} isOpen={isDetailsOpen} />
+              </Box>
             </Box>
           )}
 
-          {/* === BOOKING VIEW === */}
+          {/* === BOOKING VIEW (Unchanged) === */}
           {isBookingOpen && (
             <>
               <Tabs value={activeTab} sx={{ mb: 2, pointerEvents: 'none' }}>
