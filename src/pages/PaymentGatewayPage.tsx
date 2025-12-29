@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from '@tanstack/react-router';
+import { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import {
   Box,
   Container,
@@ -15,10 +15,13 @@ import {
   Stack,
   CircularProgress,
 } from '@mui/material';
-import { AccessTime, CreditCard, Wallet, DirectionsBusFilled, QrCode } from '@mui/icons-material';
-import { formatCurrency, formatTime } from '@/lib/utils/format';
-import { useQuery } from '@tanstack/react-query';
+import { AccessTime, DirectionsBus, CalendarToday, LocationOn, Cancel } from '@mui/icons-material';
+import { formatCurrency, formatDate, formatTime } from '@/lib/utils/format';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getBookingById } from '@/lib/api/trips';
+import type { AxiosError } from 'axios';
+import { PayOsPayment } from '@/lib/api/PaymentApi';
+import { PaymentMethods } from '@/config/PaymentMethods';
 
 // Helper component for Countdown
 const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
@@ -71,6 +74,7 @@ interface PaymentPageState {
 }
 
 export const PaymentGatewayPage = () => {
+  const navigate = useNavigate();
   // Get ticketId from query params (preferred) or state
   const location = useLocation();
   const searchParams = new URLSearchParams(location.searchStr);
@@ -78,9 +82,9 @@ export const PaymentGatewayPage = () => {
   const state = location.state as PaymentPageState | undefined;
   const ticketId = searchParams.get('ticketId') || state?.ticketId;
 
-  const [paymentMethod, setPaymentMethod] = useState('payos');
-
-  const [fallbackExpiry] = useState(() => new Date(Date.now() + 10 * 60000).toISOString());
+  const [paymentMethod, setPaymentMethod] = useState<
+    string | 'payos' | 'domestic-card' | 'momo' | 'cash' | 'international-card'
+  >('payos');
 
   // Fetch Ticket Details
   const {
@@ -92,6 +96,87 @@ export const PaymentGatewayPage = () => {
     queryFn: () => getBookingById(ticketId!),
     enabled: !!ticketId,
   });
+
+  const payosPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!ticketId) throw new Error('No ticket ID');
+
+      // Determine return URL (Current page to handle callback)
+      const currentUrl = `${window.location.origin}${window.location.pathname}?ticketId=${ticketId}`;
+
+      return PayOsPayment.createPaymentLink({
+        ticketId,
+        returnUrl: currentUrl,
+        cancelUrl: currentUrl,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success && data.checkoutUrl) {
+        // Redirect user to PayOS Checkout Page
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert('Không thể tạo liên kết thanh toán. Vui lòng thử lại.');
+      }
+    },
+    onError: (error: AxiosError<{ message: string }>) => {
+      const msg = error.response?.data?.message || 'Lỗi khi tạo thanh toán.';
+      alert(msg);
+    },
+  });
+
+  const expirationData = useMemo(() => {
+    // Default fallback if data isn't ready
+    if (!bookingData) return { expiredAt: new Date().toISOString(), isPaid: false };
+
+    const { createdAt, status, lockedUntil } = bookingData;
+    let targetTime = new Date().getTime();
+
+    // Logic: Calculate Expiry = createdAt + 10 minutes
+    if (createdAt) {
+      let dateStr = createdAt;
+      // Fix for backend ISO strings missing 'Z' (treat as UTC)
+      if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+        dateStr += 'Z';
+      }
+      const createdTime = new Date(dateStr).getTime();
+      targetTime = createdTime + 10 * 60 * 1000; // +10 minutes
+    } else if (lockedUntil) {
+      // Fallback to lockedUntil if createdAt is somehow missing
+      targetTime = new Date(lockedUntil).getTime();
+    }
+
+    return {
+      expiredAt: new Date(targetTime).toISOString(),
+      isPaid: status === 'confirmed',
+      isCancelled: status === 'cancelled',
+    };
+  }, [bookingData]);
+
+  const { expiredAt, isPaid, isCancelled } = expirationData;
+
+  if (!ticketId) {
+    return (
+      <Container>
+        <Alert severity="error">Không tìm thấy mã vé thanh toán.</Alert>
+      </Container>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Container sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (isError || !bookingData) {
+    return (
+      <Container sx={{ py: 10 }}>
+        <Alert severity="error">Không thể tải thông tin đơn hàng.</Alert>
+      </Container>
+    );
+  }
 
   if (!ticketId) {
     return (
@@ -118,243 +203,241 @@ export const PaymentGatewayPage = () => {
   }
 
   // Derived data from API response
-  const { ticketCode, pricing, tripDetails, lockedUntil, contactName, contactPhone, contactEmail } =
-    bookingData;
-
-  // Use backend provided time, or local fallback (calculated purely)
-  const expiredAt = lockedUntil || fallbackExpiry;
+  const { ticketCode, pricing, tripDetails, seats } = bookingData;
 
   const handlePayment = () => {
-    alert(`Đang chuyển hướng thanh toán ${paymentMethod} cho mã đặt chỗ ${ticketCode}...`);
+    switch (paymentMethod) {
+      case 'payos':
+        // Trigger PayOS Link Creation
+        payosPaymentMutation.mutate();
+        break;
+
+      case 'cash':
+        // Handle Cash Payment (e.g., Navigate to confirmation or show instruction)
+        alert(
+          `Vui lòng đến văn phòng nhà xe để thanh toán cho mã vé ${ticketCode}. Vé sẽ được giữ trong khoảng thời gian quy định.`,
+        );
+        // navigate({ to: '/tickets' }); // Optional: Redirect to ticket history
+        break;
+
+      case 'momo':
+      case 'domestic-card':
+      case 'international-card':
+        // Handle Maintenance / Future Implementation
+        alert(`Phương thức thanh toán ${paymentMethod} đang bảo trì. Vui lòng chọn PayOS (QR).`);
+        break;
+
+      default:
+        alert('Vui lòng chọn phương thức thanh toán hợp lệ.');
+    }
   };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* 1. Countdown Timer */}
-      <CountdownTimer targetDate={expiredAt} />
+      {/* Show only if ticket is active (not paid, not cancelled) */}
+      {!isPaid && !isCancelled && <CountdownTimer targetDate={expiredAt} />}
 
-      <Typography variant="h4" fontWeight="bold" mb={4} textAlign="center">
-        Cổng Thanh Toán
-      </Typography>
+      {/* STATUS ALERTS */}
+      {isPaid && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          Đơn hàng đã được thanh toán thành công!
+        </Alert>
+      )}
+      {isCancelled && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Đơn hàng này đã bị hủy. Vui lòng đặt vé mới.
+        </Alert>
+      )}
 
       <Grid container spacing={4}>
         {/* Left: Payment Methods */}
         <Grid size={{ xs: 12, md: 7 }}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight="bold" mb={2}>
-              Chọn phương thức thanh toán
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <RadioGroup value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+          {isCancelled ? (
+            <>
               <Paper
-                variant="outlined"
                 sx={{
-                  mb: 2,
-                  p: 1,
-                  borderColor: paymentMethod === 'payos' ? 'primary.main' : 'divider',
+                  p: 4,
+                  textAlign: 'center',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <FormControlLabel
-                  value="payos"
-                  control={<Radio />}
-                  label={
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                      <Box>
-                        <Stack
-                          direction="row"
-                          alignItems="flex-start"
-                          spacing={1}
-                          sx={{ width: '100%', pt: 0.5 }}
-                        >
-                          <QrCode color="primary" />
-                          <Typography fontWeight="bold">QR Chuyển khoản / Ví điện tử</Typography>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary">
-                          Không cần nhập thông tin. Xác nhận thanh toán tức thì, nhanh chóng và ít
-                          sai sót.
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  }
-                  sx={{ width: '100%', m: 0 }}
-                />
+                <Cancel color="error" sx={{ fontSize: 80, mb: 2, opacity: 0.8 }} />
+                <Typography variant="h5" fontWeight="bold" gutterBottom color="error.main">
+                  Vé đã bị hủy
+                </Typography>
+                <Typography color="text.secondary" sx={{ maxWidth: 450 }}>
+                  Đơn hàng này đã bị hủy do quá hạn thanh toán. Vui lòng thực hiện đặt vé mới để
+                  tiếp tục hành trình.
+                </Typography>
+              </Paper>
+            </>
+          ) : (
+            <>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" mb={2}>
+                  Chọn phương thức thanh toán
+                </Typography>
+
+                <Divider sx={{ mb: 2 }} />
+
+                <RadioGroup
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  {PaymentMethods.map((method) => (
+                    <Paper
+                      key={method.value}
+                      variant="outlined"
+                      sx={{
+                        mb: 2,
+                        p: 1,
+                        borderColor: paymentMethod === method.value ? 'primary.main' : 'divider',
+                        bgcolor: paymentMethod === method.value ? '#f5f9ff' : 'transparent', // Add highlight
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <FormControlLabel
+                        value={method.value}
+                        control={<Radio />}
+                        sx={{ width: '100%', m: 0, alignItems: 'flex-start' }}
+                        label={
+                          <Stack
+                            alignItems="flex-start"
+                            spacing={0.5}
+                            sx={{ width: '100%', pt: 0.5 }}
+                          >
+                            {/* Clone icon to apply specific props if needed, or render directly */}
+                            <Stack
+                              direction="row"
+                              alignItems="flex-start"
+                              spacing={1}
+                              sx={{ width: '100%', pt: 0.5 }}
+                            >
+                              {method.icon}
+                              <Typography fontWeight="bold">{method.label}</Typography>
+                            </Stack>
+
+                            <Typography variant="caption" color="text.secondary">
+                              {method.description}
+                            </Typography>
+                          </Stack>
+                        }
+                      />
+                    </Paper>
+                  ))}
+                </RadioGroup>
               </Paper>
 
-              <Paper
-                variant="outlined"
-                sx={{
-                  mb: 2,
-                  p: 1,
-                  borderColor: paymentMethod === 'momo' ? 'primary.main' : 'divider',
-                }}
+              <Button
+                variant="contained"
+                fullWidth
+                size="large"
+                sx={{ mt: 3, py: 1.5, fontSize: '1.1rem' }}
+                onClick={handlePayment}
+                disabled={isPaid || isCancelled || payosPaymentMutation.isPending}
               >
-                <FormControlLabel
-                  value="momo"
-                  control={<Radio />}
-                  label={
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                      <Box>
-                        <Stack
-                          direction="row"
-                          alignItems="flex-start"
-                          spacing={1}
-                          sx={{ width: '100%', pt: 0.5 }}
-                        >
-                          <Wallet color="primary" />
-                          <Typography fontWeight="bold">Ví MoMo</Typography>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary">
-                          Thanh toán qua ứng dụng MoMo
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  }
-                  sx={{ width: '100%', m: 0 }}
-                />
-              </Paper>
-
-              <Paper
-                variant="outlined"
-                sx={{
-                  mb: 2,
-                  p: 1,
-                  borderColor: paymentMethod === 'card' ? 'primary.main' : 'divider',
-                }}
-              >
-                <FormControlLabel
-                  value="card"
-                  control={<Radio />}
-                  label={
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                      <Box>
-                        <Stack
-                          direction="row"
-                          alignItems="flex-start"
-                          spacing={1}
-                          sx={{ width: '100%', pt: 0.5 }}
-                        >
-                          <CreditCard color="primary" />
-                          <Typography fontWeight="bold">Thẻ Quốc tế</Typography>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary">
-                          Thẻ Visa, MasterCard, JCB
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  }
-                  sx={{ width: '100%', m: 0 }}
-                />
-              </Paper>
-
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 1,
-                  borderColor: paymentMethod === 'cash' ? 'primary.main' : 'divider',
-                }}
-              >
-                <FormControlLabel
-                  value="cash"
-                  control={<Radio />}
-                  label={
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                      <Box>
-                        <Stack
-                          direction="row"
-                          alignItems="flex-start"
-                          spacing={1}
-                          sx={{ width: '100%', pt: 0.5 }}
-                        >
-                          <DirectionsBusFilled color="primary" />
-                          <Typography fontWeight="bold">Thanh toán tại nhà xe</Typography>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary">
-                          Bạn phải ra văn phòng nhà xe và thanh toán cho nhân viên tại quầy để lấy
-                          vé trước.
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  }
-                  sx={{ width: '100%', m: 0 }}
-                />
-              </Paper>
-            </RadioGroup>
-          </Paper>
-
-          <Button
-            variant="contained"
-            fullWidth
-            size="large"
-            sx={{ mt: 3, py: 1.5, fontSize: '1.1rem' }}
-            onClick={handlePayment}
-          >
-            Thanh toán
-          </Button>
+                {isPaid
+                  ? 'Đã thanh toán'
+                  : isCancelled
+                    ? 'Đã hủy'
+                    : payosPaymentMutation.isPending
+                      ? 'Đang xử lý...'
+                      : `Thanh toán ${formatCurrency(pricing.total)}`}
+              </Button>
+            </>
+          )}
         </Grid>
 
         {/* Right: Booking Summary */}
         <Grid size={{ xs: 12, md: 5 }}>
-          <Paper sx={{ p: 3, bgcolor: '#f8f9fa' }}>
-            <Typography variant="h6" fontWeight="bold" mb={2}>
-              Thông tin đơn hàng
+          <Paper sx={{ p: 3, borderRadius: 2, bgcolor: '#fff', position: 'sticky' }}>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Mã vé
             </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Box mb={2}>
-              <Typography variant="body2" color="text.secondary">
-                Mã đặt chỗ
-              </Typography>
-              <Typography variant="h6" color="primary">
-                {ticketCode}
-              </Typography>
-            </Box>
-
-            <Box mb={2}>
-              <Typography variant="body2" color="text.secondary">
-                Khách hàng
-              </Typography>
-              <Typography fontWeight="medium">{contactName}</Typography>
-              <Typography variant="body2">{contactPhone}</Typography>
-              <Typography variant="body2">{contactEmail}</Typography>
-            </Box>
-
-            <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
-
-            {tripDetails && (
-              <>
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  {tripDetails.operator}
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  {tripDetails.route}
-                </Typography>
-
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2">Giờ khởi hành:</Typography>
-                  <Typography variant="body2" fontWeight="bold">
-                    {formatTime(tripDetails.departureTime)}
-                  </Typography>
-                </Box>
-              </>
-            )}
-
-            <Box display="flex" justifyContent="space-between" mb={1}>
-              <Typography variant="body2">Số ghế:</Typography>
-              <Typography variant="body2" fontWeight="bold">
-                {bookingData.seats.join(', ')}
-              </Typography>
-            </Box>
+            <Typography variant="h6" color="primary">
+              {ticketCode}
+            </Typography>
 
             <Divider sx={{ my: 2 }} />
-
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">Tổng thanh toán:</Typography>
-              <Typography variant="h5" color="error" fontWeight="bold">
+            {tripDetails && (
+              <>
+                <Typography variant="subtitle1" fontWeight={700} color="primary.main" gutterBottom>
+                  {tripDetails.operator}
+                </Typography>
+                <Stack spacing={2} sx={{ mb: 3 }}>
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <DirectionsBus fontSize="small" color="action" sx={{ mt: 0.5 }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>
+                        {tripDetails.route}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <CalendarToday fontSize="small" color="action" />
+                    <Typography variant="body2">
+                      Đi: {formatTime(tripDetails.from.time)} • {formatDate(tripDetails.from.time)}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <LocationOn fontSize="small" color="action" />
+                    <Typography variant="body2">
+                      Đến: {formatTime(tripDetails.to.time)} • {formatDate(tripDetails.to.time)}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <AccessTime fontSize="small" color="action" />
+                    <Typography variant="body2">Thời gian: {tripDetails.duration}</Typography>
+                  </Stack>
+                </Stack>
+              </>
+            )}
+            <Divider sx={{ my: 2 }} />
+            <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography color="text.secondary">Ghế:</Typography>
+              <Typography fontWeight={700} color="primary.main">
+                {seats.join(', ')}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography color="text.secondary">Số lượng:</Typography>
+              <Typography fontWeight={700}>{seats.length} ghế</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography color="text.secondary">Tổng tiền:</Typography>
+              <Typography fontWeight={700}>{formatCurrency(pricing.total)}</Typography>
+            </Stack>
+            <Divider sx={{ my: 2 }} />
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="h6" fontWeight={700}>
+                Thanh toán
+              </Typography>
+              <Typography variant="h5" fontWeight={700} color="error">
                 {formatCurrency(pricing.total)}
               </Typography>
-            </Box>
+            </Stack>
           </Paper>
+
+          {isCancelled && (
+            <>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate({ to: '/' })}
+                sx={{
+                  mt: 2,
+                  width: '100%',
+                }}
+              >
+                Quay về trang chủ
+              </Button>
+            </>
+          )}
         </Grid>
       </Grid>
     </Container>

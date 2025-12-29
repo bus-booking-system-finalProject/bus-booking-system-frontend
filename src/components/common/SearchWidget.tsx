@@ -118,6 +118,7 @@ const formatDate = (dateString: string | null) => {
 };
 
 const getInitialState = () => {
+  const today = getTodayString();
   const params = new URLSearchParams(window.location.search);
   const urlOrigin = params.get('origin');
   const urlDest = params.get('destination');
@@ -130,7 +131,7 @@ const getInitialState = () => {
         BACKEND_TO_DISPLAY[urlOrigin || ''] || (urlOrigin ? decodeURIComponent(urlOrigin) : null),
       destination:
         BACKEND_TO_DISPLAY[urlDest || ''] || (urlDest ? decodeURIComponent(urlDest) : null),
-      departDate: urlDate || '',
+      departDate: urlDate || today,
       returnDate: urlReturn || '',
     };
   }
@@ -143,7 +144,7 @@ const getInitialState = () => {
       return {
         origin: parsed.origin || null,
         destination: parsed.destination || null,
-        departDate: parsed.departDate >= today ? parsed.departDate : '',
+        departDate: parsed.departDate >= today ? parsed.departDate : today,
         returnDate: parsed.returnDate >= today ? parsed.returnDate : '',
       };
     } catch (e) {
@@ -151,7 +152,7 @@ const getInitialState = () => {
     }
   }
 
-  return { origin: null, destination: null, departDate: '', returnDate: '' };
+  return { origin: null, destination: null, departDate: today, returnDate: '' };
 };
 
 // --- INTERFACES ---

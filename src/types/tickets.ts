@@ -67,6 +67,44 @@ export interface BookingResponse {
   confirmedAt?: string | null;
 }
 
+export interface TicketHistoryItem {
+  ticketId: string;
+  ticketCode: string;
+  trip: {
+    route: string;
+    departureTime: string;
+    operator: string;
+  };
+  seats: string[];
+  totalAmount: number;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  createdAt: string;
+}
+
+export interface TicketHistoryResponse {
+  success: boolean;
+  data: TicketHistoryItem[];
+  pagination: {
+    total: number;
+    limit: number;
+    totalPages: number;
+    page: number;
+  };
+}
+
+export interface CancelTicketResponse {
+  ticketId: string;
+  status: string;
+  refund: {
+    amount: number;
+    percentage: number;
+    status: string;
+    processingTime: string | null;
+    refundMethod: string | null;
+  };
+  cancelledAt: string;
+}
+
 // --- GUEST LOOKUP ---
 export interface GuestLookupRequest {
   ticketCode: string; // The reference code (e.g. VXS-12345)

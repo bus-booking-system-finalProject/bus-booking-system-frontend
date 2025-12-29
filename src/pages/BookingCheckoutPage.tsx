@@ -28,7 +28,7 @@ import {
   Payment,
 } from '@mui/icons-material';
 import { getBookingById, cancelTicket } from '@/lib/api/trips';
-import { createPaymentLink } from '@/lib/api/PaymentApi';
+import { PayOsPayment } from '@/lib/api/PaymentApi';
 import { bookingCheckoutRoute } from '@/routes/BookingCheckoutRoute';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,7 +64,7 @@ const BookingCheckoutPage: React.FC = () => {
       // Construct the return URL to be the current page
       const currentUrl = `${window.location.origin}${window.location.pathname}?ticketId=${ticketId}`;
 
-      return createPaymentLink({
+      return PayOsPayment.createPaymentLink({
         ticketId,
         returnUrl: currentUrl,
         cancelUrl: currentUrl,

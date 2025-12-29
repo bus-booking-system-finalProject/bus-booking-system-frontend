@@ -121,6 +121,9 @@ export interface BookingResponse {
     operator: string;
     departureTime: string;
     arrivalTime: string;
+    duration: number;
+    from: StopPoint;
+    to: StopPoint;
   };
 
   pricing: {
@@ -136,70 +139,9 @@ export interface BookingResponse {
   confirmedAt?: string | null;
 }
 
-export interface LockSeatsRequest {
-  tripId: string;
-  seats: string[];
-  sessionId: string;
-}
-
-export interface LockSeatsResponse {
-  success: boolean;
-  message: string;
-}
-
-export interface UnlockSeatsRequest {
-  tripId: string;
-  seats: string[];
-  sessionId: string;
-}
-
-export interface UnlockSeatsResponse {
-  success: boolean;
-  message: string;
-}
-
-export interface TicketHistoryItem {
-  ticketId: string;
-  ticketCode: string;
-  trip: {
-    route: string;
-    departureTime: string;
-    operator: string;
-  };
-  seats: string[];
-  totalAmount: number;
-  status: 'pending' | 'confirmed' | 'cancelled';
-  createdAt: string;
-}
-
-export interface TicketHistoryResponse {
-  success: boolean;
-  data: TicketHistoryItem[];
-  pagination: {
-    total: number;
-    limit: number;
-    totalPages: number;
-    page: number;
-  };
-}
-
-export interface CancelTicketResponse {
-  ticketId: string;
-  status: string;
-  refund: {
-    amount: number;
-    percentage: number;
-    status: string;
-    processingTime: string | null;
-    refundMethod: string | null;
-  };
-  cancelledAt: string;
-}
-
 export interface StopPoint {
   stopId: string;
   name: string;
   address: string;
-  type: 'PICKUP' | 'DROPOFF';
-  time: string; // ISO string
+  time: string;
 }

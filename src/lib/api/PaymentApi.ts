@@ -13,12 +13,12 @@ export interface CreatePaymentLinkResponse {
   qrCode: string;
 }
 
-export const createPaymentLink = async (
-  data: CreatePaymentLinkRequest,
-): Promise<CreatePaymentLinkResponse> => {
-  const response = await apiClient.post<CreatePaymentLinkResponse>(
-    '/booking/payments/create-link',
-    data,
-  );
-  return response.data;
+export const PayOsPayment = {
+  createPaymentLink: async (data: CreatePaymentLinkRequest): Promise<CreatePaymentLinkResponse> => {
+    const response = await apiClient.post<CreatePaymentLinkResponse>(
+      '/booking/payments/create-link',
+      data,
+    );
+    return response.data;
+  },
 };

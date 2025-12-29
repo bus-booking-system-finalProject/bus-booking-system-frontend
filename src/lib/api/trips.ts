@@ -1,17 +1,14 @@
 import { apiClient, apiPrivate } from './axios';
 import qs from 'qs';
+import type { Trip, SeatLayout, CreateBookingRequest, BookingResponse } from '@/types/TripTypes';
 import type {
-  Trip,
-  SeatLayout,
-  CreateBookingRequest,
-  BookingResponse,
+  TicketHistoryResponse,
+  CancelTicketResponse,
   LockSeatsRequest,
   LockSeatsResponse,
   UnlockSeatsRequest,
   UnlockSeatsResponse,
-  TicketHistoryResponse,
-  CancelTicketResponse,
-} from '@/types/TripTypes';
+} from '@/types/tickets';
 
 export interface SearchTripsParams {
   origin: string;
