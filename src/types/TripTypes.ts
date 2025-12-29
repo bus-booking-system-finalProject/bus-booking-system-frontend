@@ -139,28 +139,6 @@ export interface BookingResponse {
   confirmedAt?: string | null;
 }
 
-export interface LockSeatsRequest {
-  tripId: string;
-  seats: string[];
-  sessionId: string;
-}
-
-export interface LockSeatsResponse {
-  success: boolean;
-  message: string;
-}
-
-export interface UnlockSeatsRequest {
-  tripId: string;
-  seats: string[];
-  sessionId: string;
-}
-
-export interface UnlockSeatsResponse {
-  success: boolean;
-  message: string;
-}
-
 export interface TicketHistoryItem {
   ticketId: string;
   ticketCode: string;
@@ -225,4 +203,34 @@ export interface OperatorReviewsResponse {
     totalPages: number;
     page: number;
   };
+}
+
+export interface Review {
+  id: string;
+  tripId: string;
+  rating: number;
+  comment: string;
+  userEmail: string;
+  submittedAt: string;
+}
+
+export interface OperatorReviewsResponse {
+  averageRating: number;
+  totalReviews: number;
+  reviews: Review[];
+  pagination: {
+    total: number;
+    limit: number;
+    totalPages: number;
+    page: number;
+  };
+}
+
+export interface FeedbackResponse {
+  id: string;
+  tripId: string;
+  rating: number;
+  comment: string;
+  userEmail: string;
+  submittedAt: string;
 }

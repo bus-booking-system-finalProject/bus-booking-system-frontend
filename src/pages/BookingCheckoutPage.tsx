@@ -32,12 +32,12 @@ import {
   LocationOn,
   Timer,
   Payment,
-  Flag, // Icon for Completed
-  RateReview, // Icon for Review
+  Flag,
+  RateReview,
 } from '@mui/icons-material';
-import { getBookingById, cancelTicket } from '@/lib/api/trips';
+import { getBookingById, cancelTicket, getMyFeedback } from '@/lib/api/trips';
 import { PayOsPayment } from '@/lib/api/PaymentApi';
-import { apiPrivate } from '@/lib/api/axios'; // Ensure apiPrivate is imported
+import { apiPrivate } from '@/lib/api/axios';
 import { bookingCheckoutRoute } from '@/routes/BookingCheckoutRoute';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/hooks/useAuth';
@@ -62,6 +62,7 @@ const BookingCheckoutPage: React.FC = () => {
   // 1. STATE
   const [now, setNow] = useState(0);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Review Dialog State
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -76,6 +77,16 @@ const BookingCheckoutPage: React.FC = () => {
     queryKey: ['booking', ticketId],
     queryFn: () => getBookingById(ticketId),
     enabled: !!ticketId,
+  });
+
+  const tripId = booking?.tripDetails?.tripId || booking?.tripId;
+  const isCompleted = booking?.status === 'completed';
+
+  // Fetch the current user's review for this trip (if completed)
+  const { data: myReview, isLoading: isLoadingReview } = useQuery({
+    queryKey: ['my-feedback', tripId],
+    queryFn: () => (tripId ? getMyFeedback(tripId) : Promise.resolve(null)),
+    enabled: !!tripId && isCompleted && !!accessToken, // Only fetch if completed & logged in
   });
 
   // --- API: Submit Feedback ---
@@ -126,7 +137,13 @@ const BookingCheckoutPage: React.FC = () => {
     mutationFn: submitFeedback,
     onSuccess: () => {
       setIsReviewOpen(false);
-      alert('Cảm ơn bạn đã đánh giá chuyến đi!');
+      // Change from simple alert to refreshing the data
+      // alert('Cảm ơn bạn đã đánh giá chuyến đi!'); <--- REMOVE THIS
+      setToastMessage('Cảm ơn bạn đã đánh giá chuyến đi!');
+      setShowSuccessToast(true);
+
+      // IMPORTANT: Refresh the 'my-feedback' query so the UI updates from Button -> Review Card
+      queryClient.invalidateQueries({ queryKey: ['my-feedback', tripId] });
     },
     onError: (error: AxiosError<ApiErrorResponse>) => {
       const msg = error.response?.data?.message || 'Lỗi khi gửi đánh giá.';
@@ -139,6 +156,7 @@ const BookingCheckoutPage: React.FC = () => {
     let timer: NodeJS.Timeout;
     if (code === '00' && status === 'PAID') {
       timer = setTimeout(() => {
+        setToastMessage('Bạn đã thanh toán thành công!');
         setShowSuccessToast(true);
         queryClient.invalidateQueries({ queryKey: ['booking', ticketId] });
       }, 0);
@@ -247,7 +265,6 @@ const BookingCheckoutPage: React.FC = () => {
   if (isError || !booking) return <Alert severity="error">Không tìm thấy thông tin vé.</Alert>;
 
   // --- STATUS LOGIC (Updated for 2 new statuses) ---
-  const isCompleted = booking.status === 'completed'; // New
   const isConfirmed = booking.status === 'confirmed'; // New Name for Paid
   const isCancelled = booking.status === 'cancelled';
   const isPending = booking.status === 'pending';
@@ -453,16 +470,49 @@ const BookingCheckoutPage: React.FC = () => {
 
               {/* ACTION BUTTONS */}
               <Stack spacing={2}>
-                {/* 1. Review Button (Completed & Logged In) */}
+                {/* 1. REVIEW LOGIC (NEW) */}
                 {isCompleted && accessToken && (
-                  <Button
-                    variant="contained"
-                    startIcon={<RateReview />}
-                    onClick={() => setIsReviewOpen(true)}
-                    sx={{ bgcolor: '#9c27b0', '&:hover': { bgcolor: '#7b1fa2' } }}
-                  >
-                    Viết đánh giá
-                  </Button>
+                  <>
+                    {isLoadingReview ? (
+                      <CircularProgress size={20} sx={{ mx: 'auto' }} />
+                    ) : myReview ? (
+                      // CASE A: User HAS reviewed -> Show their review info
+                      <Box
+                        sx={{
+                          p: 2,
+                          bgcolor: '#e5f6fd',
+                          borderRadius: 2,
+                          border: '1px solid #dcedc8',
+                        }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                          <CheckCircle color="success" fontSize="small" />
+                          <Typography variant="subtitle2" fontWeight={700} color="primary.main">
+                            Đánh giá của bạn
+                          </Typography>
+                        </Stack>
+                        <Rating value={myReview.rating} readOnly size="small" />
+                        {myReview.comment && (
+                          <Typography
+                            variant="body2"
+                            sx={{ mt: 1, fontStyle: 'italic', color: 'text.secondary' }}
+                          >
+                            "{myReview.comment}"
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      // CASE B: User has NOT reviewed -> Show "Write Review" Button
+                      <Button
+                        variant="contained"
+                        startIcon={<RateReview />}
+                        onClick={() => setIsReviewOpen(true)}
+                        sx={{ bgcolor: '#9c27b0', '&:hover': { bgcolor: '#7b1fa2' } }}
+                      >
+                        Viết đánh giá
+                      </Button>
+                    )}
+                  </>
                 )}
 
                 {/* 2. Payment Button (Only if Pending & Not Expired) */}
@@ -534,7 +584,7 @@ const BookingCheckoutPage: React.FC = () => {
               <Rating
                 name="rating"
                 value={rating}
-                onChange={(_, newValue) => setRating(newValue)}
+                onChange={(_event, newValue) => setRating(newValue)}
                 size="large"
               />
             </Box>
@@ -571,7 +621,7 @@ const BookingCheckoutPage: React.FC = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={() => setShowSuccessToast(false)} severity="success" sx={{ width: '100%' }}>
-          Thanh toán thành công!
+          {toastMessage}
         </Alert>
       </Snackbar>
     </Box>

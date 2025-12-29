@@ -6,15 +6,10 @@ import type {
   CreateBookingRequest,
   BookingResponse,
   OperatorReviewsResponse,
-} from '@/types/TripTypes';
-import type {
   TicketHistoryResponse,
   CancelTicketResponse,
-  LockSeatsRequest,
-  LockSeatsResponse,
-  UnlockSeatsRequest,
-  UnlockSeatsResponse,
-} from '@/types/tickets';
+  FeedbackResponse,
+} from '@/types/TripTypes';
 
 export interface SearchTripsParams {
   origin: string;
@@ -116,18 +111,6 @@ export const getBookingById = async (ticketId: string): Promise<BookingResponse>
   return response.data;
 };
 
-export const lockSeats = async (data: LockSeatsRequest): Promise<LockSeatsResponse> => {
-  // Use apiClient (public) or apiPrivate depending on your security.
-  // Usually locking is public but requires the session ID.
-  const response = await apiClient.post<LockSeatsResponse>('/booking/tickets/lock', data);
-  return response.data;
-};
-
-export const unlockSeats = async (data: UnlockSeatsRequest): Promise<UnlockSeatsResponse> => {
-  const response = await apiClient.post<UnlockSeatsResponse>('/booking/tickets/unlock', data);
-  return response.data;
-};
-
 export const getMyTickets = async (page = 1, limit = 5): Promise<TicketHistoryResponse> => {
   const response = await apiPrivate.get<TicketHistoryResponse>('/booking/tickets', {
     params: { page, limit },
@@ -154,6 +137,14 @@ export const getOperatorReviews = async (
     {
       params: { page, limit },
     },
+  );
+  return response.data.data;
+};
+
+export const getMyFeedback = async (tripId: string): Promise<FeedbackResponse | null> => {
+  const response = await apiPrivate.get<{ success: boolean; data: FeedbackResponse | null }>(
+    '/feedback/me',
+    { params: { tripId } },
   );
   return response.data.data;
 };
