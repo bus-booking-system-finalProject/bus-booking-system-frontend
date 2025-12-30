@@ -62,47 +62,6 @@ const PROVINCES = [
   'Bình Phước',
 ];
 
-const PROVINCE_BACKEND_MAP: Record<string, string> = {
-  'Hồ Chí Minh': 'Ho Chi Minh City',
-  'Hà Nội': 'Hanoi',
-  'Đà Nẵng': 'Da Nang',
-  'Đồng Tháp': 'Dong Thap',
-  'An Giang': 'An Giang',
-  'Cần Thơ': 'Can Tho',
-  'Bà Rịa - Vũng Tàu': 'Ba Ria - Vung Tau',
-  'Bình Dương': 'Binh Duong',
-  'Đồng Nai': 'Dong Nai',
-  'Khánh Hòa': 'Khanh Hoa',
-  'Lâm Đồng': 'Lam Dong',
-  'Thừa Thiên Huế': 'Thua Thien Hue',
-  'Hải Phòng': 'Hai Phong',
-  'Quảng Ninh': 'Quang Ninh',
-  'Thanh Hóa': 'Thanh Hoa',
-  'Nghệ An': 'Nghe An',
-  'Bình Thuận': 'Binh Thuan',
-  'Kiên Giang': 'Kien Giang',
-  'Cà Mau': 'Ca Mau',
-  'Tiền Giang': 'Tien Giang',
-  'Long An': 'Long An',
-  'Bến Tre': 'Ben Tre',
-  'Vĩnh Long': 'Vinh Long',
-  'Trà Vinh': 'Tra Vinh',
-  'Hậu Giang': 'Hau Giang',
-  'Sóc Trăng': 'Soc Trang',
-  'Bạc Liêu': 'Bac Lieu',
-  'Bình Định': 'Binh Dinh',
-  'Phú Yên': 'Phu Yen',
-  'Quảng Nam': 'Quang Nam',
-  'Quảng Ngãi': 'Quang Ngai',
-  'Gia Lai': 'Gia Lai',
-  'Đắk Lắk': 'Dak Lak',
-  'Bình Phước': 'Binh Phuoc',
-};
-
-const BACKEND_TO_DISPLAY: Record<string, string> = Object.fromEntries(
-  Object.entries(PROVINCE_BACKEND_MAP).map(([display, backend]) => [backend, display]),
-);
-
 // --- HELPERS ---
 const getTodayString = () => {
   const now = new Date();
@@ -133,10 +92,8 @@ const getInitialState = () => {
 
   if (urlOrigin || urlDest || urlDate) {
     return {
-      origin:
-        BACKEND_TO_DISPLAY[urlOrigin || ''] || (urlOrigin ? decodeURIComponent(urlOrigin) : null),
-      destination:
-        BACKEND_TO_DISPLAY[urlDest || ''] || (urlDest ? decodeURIComponent(urlDest) : null),
+      origin: urlOrigin ? decodeURIComponent(urlOrigin) : null,
+      destination: urlDest ? decodeURIComponent(urlDest) : null,
       departDate: urlDate || today,
       returnDate: urlReturn || '',
     };
@@ -378,14 +335,12 @@ const SearchWidget: React.FC = () => {
       alert('Vui lòng chọn Điểm đi, Điểm đến và Ngày đi');
       return;
     }
-    const backendOrigin = PROVINCE_BACKEND_MAP[origin] || origin;
-    const backendDestination = PROVINCE_BACKEND_MAP[destination] || destination;
 
     navigate({
       to: '/search-results',
       search: {
-        origin: backendOrigin,
-        destination: backendDestination,
+        origin: origin,
+        destination: destination,
         date: departDate,
         returnDate: returnDate || undefined,
         page: 1,
