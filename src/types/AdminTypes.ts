@@ -31,8 +31,10 @@ export interface PaginatedResponse<T> {
 export interface Operator {
   id: string;
   name: string;
+  image: string;
   contactEmail: string;
   contactPhone: string;
+  rating: number;
 }
 
 // --- BUS ---

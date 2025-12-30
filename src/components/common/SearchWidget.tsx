@@ -104,7 +104,13 @@ const BACKEND_TO_DISPLAY: Record<string, string> = Object.fromEntries(
 );
 
 // --- HELPERS ---
-const getTodayString = () => new Date().toISOString().split('T')[0];
+const getTodayString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '';
@@ -317,6 +323,26 @@ const SearchWidget: React.FC = () => {
     const stateToSave = { origin, destination, departDate, returnDate };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
   }, [origin, destination, departDate, returnDate]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      const today = getTodayString();
+      const currentDepart = departDate;
+
+      // If the currently selected date is in the past, update it to today
+      if (currentDepart < today) {
+        setDepartDate(today);
+      }
+
+      // Update the min attribute for the input (force re-render if needed)
+      if (departInputRef.current) {
+        departInputRef.current.min = today;
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [departDate]);
 
   const handleOriginChange = (newValue: string | null) => {
     setOrigin(newValue);

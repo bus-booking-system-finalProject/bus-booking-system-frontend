@@ -267,7 +267,7 @@ function Header() {
                 <Tooltip title="Tài khoản">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                     <Avatar alt={user.email} sx={{ bgcolor: 'primary.dark' }}>
-                      {user.email[0].toUpperCase()}
+                      {user.email ? user.email[0].toUpperCase() : null}
                     </Avatar>
                   </IconButton>
                 </Tooltip>
