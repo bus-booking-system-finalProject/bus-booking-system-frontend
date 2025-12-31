@@ -42,8 +42,7 @@ if (rootElement && !rootElement.innerHTML) {
 
         <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
           <AuthProvider>
-            {/* RouterProvider will render the app based on the theme */}
-            <RouterProvider router={router} basepath="/bus-booking-system-frontend/" />
+            <RouterProvider router={router} />
           </AuthProvider>
         </TanStackQueryProvider.Provider>
       </ThemeProvider>

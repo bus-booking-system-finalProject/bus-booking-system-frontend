@@ -5,6 +5,9 @@ import { fileURLToPath, URL } from 'node:url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    outDir: 'dist',
+  },
   plugins: [
     viteReact({
       babel: {
@@ -22,7 +25,6 @@ export default defineConfig({
     port: 5173,
     host: true,
   },
-  base: '/bus-booking-system-frontend/',
   test: {
     globals: true, // Ensures global functions like 'expect' are available
     setupFiles: './src/test/setupTests.ts', // Path to your setup file
