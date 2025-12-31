@@ -14,13 +14,14 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { FcGoogle as GoogleIcon } from 'react-icons/fc';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from '@tanstack/react-form';
 import { LoginSchema, RegisterSchema } from '@/schemas/AuthSchema';
 import { useAuth } from '@/hooks/useAuth';
-import { loginUser, registerUser } from '@/lib/api/AuthApi';
+import { loginUser, registerUser, forgotPassword } from '@/lib/api/AuthApi';
 import type { UserProfile } from '@/types/auth';
 import { getAPIUrl } from '@/config/api';
 import { useNavigate } from '@tanstack/react-router';
@@ -28,49 +29,91 @@ import { useNavigate } from '@tanstack/react-router';
 
 // --- LOGIN FORM COMPONENT ---
 
+// 1. Forgot Password Form
+function ForgotPasswordForm({
+  onBack,
+  onSuccess,
+}: {
+  onBack: () => void;
+  onSuccess: (msg: string) => void;
+}) {
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: forgotPassword,
+    onSuccess: (msg) => onSuccess(msg),
+    onError: (error: Error) => setErrorMsg(error.message),
+  });
+
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    mutation.mutate(email);
+  };
+
+  return (
+    <Box component="form" onSubmit={handleSubmit} sx={{ p: 2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Nhập email của bạn. Chúng tôi sẽ gửi liên kết để đặt lại mật khẩu.
+      </Typography>
+
+      <TextField
+        required
+        label="Email"
+        fullWidth
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        error={!!errorMsg}
+        helperText={errorMsg}
+        sx={{ mb: 2 }}
+      />
+
+      <Button type="submit" variant="contained" fullWidth disabled={mutation.isPending}>
+        {mutation.isPending ? <CircularProgress size={24} /> : 'Gửi liên kết'}
+      </Button>
+
+      <Button startIcon={<ArrowBackIcon />} onClick={onBack} fullWidth sx={{ mt: 2 }}>
+        Quay lại đăng nhập
+      </Button>
+    </Box>
+  );
+}
+
+// 2. Login Form (Updated to include Forgot Password link)
 function LoginForm({
   onSwitch,
+  onForgotPassword, // <--- New Prop
   onLoginSuccess,
 }: {
   onSwitch: () => void;
+  onForgotPassword: () => void; // <--- New Prop
   onLoginSuccess: (msg: string) => void;
 }) {
-  const [feedback, setFeedback] = useState<{
-    type: 'error';
-    message: string;
-  } | null>(null);
-  const auth = useAuth(); // Consume Auth Context
+  const [feedback, setFeedback] = useState<{ type: 'error'; message: string } | null>(null);
+  const auth = useAuth();
   const navigate = useNavigate();
 
   const mutation = useMutation({
     mutationFn: loginUser,
-    // Update the data type here
     onSuccess: (data: { accessToken: string; user: UserProfile }) => {
-      // 1. Call global login with BOTH user and token
       auth.login(data.user, data.accessToken);
-
-      // 2. Report success
-      onLoginSuccess('Login successfully!');
-      form.reset();
-
-      // 3. Navigation logic
+      onLoginSuccess('Đăng nhập thành công!');
       if (data.user.role === 'ADMIN') {
-        setTimeout(() => {
-          navigate({ to: '/admin' });
-        }, 1500);
+        setTimeout(() => navigate({ to: '/admin' }), 1500);
       }
     },
-    onError: (error: Error) => {
-      setFeedback({ type: 'error', message: error.message });
-    },
+    onError: (error: Error) => setFeedback({ type: 'error', message: error.message }),
   });
 
   const form = useForm({
     defaultValues: { email: '', password: '' },
     validators: { onBlur: LoginSchema },
     onSubmit: async ({ value }) => {
-      setFeedback(null); // Clear previous errors
-      mutation.mutate(value); // Trigger the API call
+      setFeedback(null);
+      mutation.mutate(value);
     },
   });
 
@@ -83,55 +126,53 @@ function LoginForm({
         e.stopPropagation();
         form.handleSubmit();
       }}
-      className="space-y-4"
     >
       <form.Field
         name="email"
-        children={({ state, handleChange, handleBlur }) => {
-          const hasError = state.meta.isTouched && !!state.meta.errors.length;
-          return (
-            <TextField
-              required
-              id="email"
-              label="Email"
-              fullWidth
-              variant="outlined"
-              value={state.value} // Use 'value' for controlled component
-              onChange={(e) => handleChange(e.target.value)}
-              onBlur={handleBlur}
-              placeholder="you@example.com"
-              sx={{ mb: 2 }}
-              error={hasError}
-              helperText={hasError ? state.meta.errors[0]?.message : null}
-            />
-          );
-        }}
+        children={({ state, handleChange, handleBlur }) => (
+          <TextField
+            required
+            label="Email"
+            fullWidth
+            value={state.value}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={handleBlur}
+            sx={{ mb: 2 }}
+            error={state.meta.isTouched && !!state.meta.errors.length}
+            helperText={state.meta.isTouched ? state.meta.errors[0]?.message : null}
+          />
+        )}
       />
 
       <form.Field
         name="password"
-        children={({ state, handleChange, handleBlur }) => {
-          const hasError = state.meta.isTouched && !!state.meta.errors.length;
-          return (
-            <TextField
-              required
-              id="password"
-              label="Password"
-              fullWidth
-              variant="outlined"
-              value={state.value}
-              onChange={(e) => handleChange(e.target.value)}
-              onBlur={handleBlur}
-              placeholder="••••••••"
-              type="password"
-              error={hasError}
-              helperText={hasError ? state.meta.errors[0]?.message : null}
-            />
-          );
-        }}
+        children={({ state, handleChange, handleBlur }) => (
+          <TextField
+            required
+            label="Mật khẩu"
+            fullWidth
+            type="password"
+            value={state.value}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={handleBlur}
+            error={state.meta.isTouched && !!state.meta.errors.length}
+            helperText={state.meta.isTouched ? state.meta.errors[0]?.message : null}
+          />
+        )}
       />
 
-      {/* Display validation or API errors */}
+      {/* Forgot Password Link */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+        <Typography
+          variant="caption"
+          color="primary"
+          sx={{ cursor: 'pointer', fontWeight: 600 }}
+          onClick={onForgotPassword}
+        >
+          Quên mật khẩu?
+        </Typography>
+      </Box>
+
       {feedback && (
         <Stack direction="row" alignItems="center" spacing={1} sx={{ color: 'error.main', pt: 2 }}>
           <ErrorOutlineIcon fontSize="small" />
@@ -171,10 +212,7 @@ function LoginForm({
             fontWeight="bold"
             color="primary"
             onClick={onSwitch}
-            sx={{
-              cursor: 'pointer',
-              '&:hover': { textDecoration: 'underline' },
-            }}
+            sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
           >
             Đăng ký
           </Typography>
@@ -184,8 +222,7 @@ function LoginForm({
   );
 }
 
-// --- REGISTER FORM COMPONENT ---
-
+// 3. Register Form (Unchanged logic, just ensure success message is correct)
 function RegisterForm({
   onSwitch,
   onRegisterSuccess,
@@ -193,21 +230,15 @@ function RegisterForm({
   onSwitch: () => void;
   onRegisterSuccess: (msg: string) => void;
 }) {
-  const [feedback, setFeedback] = useState<{
-    type: 'error';
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'error'; message: string } | null>(null);
 
   const mutation = useMutation({
     mutationFn: registerUser,
-    onSuccess: (_) => {
-      onRegisterSuccess('Create a new account successfully!');
-      form.reset();
+    onSuccess: () => {
+      // Changed message to reflect email verification
+      onRegisterSuccess('Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản.');
     },
-    onError: (error: Error) => {
-      // This will show errors from NestJS (e.g., "Email already exists")
-      setFeedback({ type: 'error', message: error.message });
-    },
+    onError: (error: Error) => setFeedback({ type: 'error', message: error.message }),
   });
 
   const form = useForm({
@@ -221,84 +252,62 @@ function RegisterForm({
 
   return (
     <Box
-      sx={{ p: 2 }}
       component="form"
+      sx={{ p: 2 }}
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
         form.handleSubmit();
       }}
-      className="space-y-4"
     >
       <form.Field
         name="email"
-        children={({ state, handleChange, handleBlur }) => {
-          const hasError = state.meta.isTouched && !!state.meta.errors.length;
-          return (
-            <TextField
-              required
-              id="email"
-              label="Email"
-              fullWidth
-              variant="outlined"
-              value={state.value} // Use 'value' for controlled component
-              onChange={(e) => handleChange(e.target.value)}
-              onBlur={handleBlur}
-              placeholder="you@example.com"
-              sx={{ mb: 2 }}
-              error={hasError}
-              helperText={hasError ? state.meta.errors[0]?.message : null}
-            />
-          );
-        }}
+        children={({ state, handleChange, handleBlur }) => (
+          <TextField
+            required
+            label="Email"
+            fullWidth
+            value={state.value}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={handleBlur}
+            sx={{ mb: 2 }}
+            error={state.meta.isTouched && !!state.meta.errors.length}
+            helperText={state.meta.isTouched ? state.meta.errors[0]?.message : null}
+          />
+        )}
       />
-
       <form.Field
         name="password"
-        children={({ state, handleChange, handleBlur }) => {
-          const hasError = state.meta.isTouched && !!state.meta.errors.length;
-          return (
-            <TextField
-              required
-              id="password"
-              label="Password"
-              fullWidth
-              variant="outlined"
-              value={state.value} // Use 'value' for controlled component
-              onChange={(e) => handleChange(e.target.value)}
-              onBlur={handleBlur}
-              placeholder="••••••••"
-              type="password"
-              error={hasError}
-              helperText={hasError ? state.meta.errors[0]?.message : null}
-            />
-          );
-        }}
+        children={({ state, handleChange, handleBlur }) => (
+          <TextField
+            required
+            label="Mật khẩu"
+            fullWidth
+            type="password"
+            value={state.value}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={handleBlur}
+            error={state.meta.isTouched && !!state.meta.errors.length}
+            helperText={state.meta.isTouched ? state.meta.errors[0]?.message : null}
+          />
+        )}
       />
-
       {feedback && (
         <Stack direction="row" alignItems="center" spacing={1} sx={{ color: 'error.main', pt: 2 }}>
           <ErrorOutlineIcon fontSize="small" />
           <Typography variant="body2">{feedback.message}</Typography>
         </Stack>
       )}
-
-      <form.Subscribe selector={(state) => [state.isSubmitting]}>
-        {() => (
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            disabled={mutation.isPending}
-            sx={{ mt: 2 }}
-          >
-            {mutation.isPending ? <CircularProgress size={24} color="inherit" /> : 'Đăng ký'}
-          </Button>
-        )}
-      </form.Subscribe>
-
+      <Button
+        type="submit"
+        variant="contained"
+        fullWidth
+        disabled={mutation.isPending}
+        sx={{ mt: 2 }}
+      >
+        {mutation.isPending ? <CircularProgress size={24} color="inherit" /> : 'Đăng ký'}
+      </Button>
       <Divider sx={{ my: 2 }}>hoặc</Divider>
-
       <Button
         variant="outlined"
         fullWidth
@@ -317,10 +326,7 @@ function RegisterForm({
             fontWeight="bold"
             color="primary"
             onClick={onSwitch}
-            sx={{
-              cursor: 'pointer',
-              '&:hover': { textDecoration: 'underline' },
-            }}
+            sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
           >
             Đăng nhập
           </Typography>
@@ -330,49 +336,41 @@ function RegisterForm({
   );
 }
 
-// --- AUTH MODAL WRAPPER (Manages 'login'/'register'/'success' views) ---
-
-type AuthView = 'login' | 'register';
+// 4. Main Modal Component
+type AuthView = 'login' | 'register' | 'forgot-password';
 
 interface AuthModalProps {
   open: boolean;
   onClose: () => void;
-  initialView?: AuthView;
+  initialView?: 'login' | 'register';
 }
 
 export default function AuthModal({ open, onClose, initialView = 'login' }: AuthModalProps) {
   const [currentView, setCurrentView] = useState<AuthView>(initialView);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSwitchView = () => {
-    setSuccessMessage(null); // Clear success message on switch
-    setCurrentView((prev) => (prev === 'login' ? 'register' : 'login'));
-  };
+  const handleSwitchToRegister = () => setCurrentView('register');
+  const handleSwitchToLogin = () => setCurrentView('login');
+  const handleSwitchToForgot = () => setCurrentView('forgot-password');
 
-  const handleLoginSuccess = (msg: string) => {
+  const handleSuccess = (msg: string) => {
     setSuccessMessage(msg);
-    // Close the modal after a short delay on successful login
-    setTimeout(onClose, 2000);
-  };
-
-  const handleRegisterSuccess = (msg: string) => {
-    setSuccessMessage(msg);
-    // Switch to login view after successful registration
+    // If it was login success, close modal. If register success (email sent), wait.
     setTimeout(() => {
-      setSuccessMessage(null);
-      setCurrentView('login');
-    }, 1500);
+      if (currentView === 'login') onClose();
+    }, 2000);
   };
 
-  const title = currentView === 'login' ? 'Đăng nhập' : 'Đăng ký';
-
-  // Reset the view when the modal is re-opened
   React.useEffect(() => {
     if (open) {
       setCurrentView(initialView);
-      setSuccessMessage(null); // Reset success message
+      setSuccessMessage(null);
     }
   }, [open, initialView]);
+
+  let title = 'Đăng nhập';
+  if (currentView === 'register') title = 'Đăng ký';
+  if (currentView === 'forgot-password') title = 'Quên mật khẩu';
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -386,7 +384,6 @@ export default function AuthModal({ open, onClose, initialView = 'login' }: Auth
       </DialogTitle>
       <DialogContent>
         {successMessage ? (
-          // --- Success View ---
           <Stack
             direction="column"
             alignItems="center"
@@ -397,14 +394,17 @@ export default function AuthModal({ open, onClose, initialView = 'login' }: Auth
             <Typography variant="h6" color="success.main">
               {successMessage}
             </Typography>
-            <CircularProgress size={20} />
           </Stack>
         ) : currentView === 'login' ? (
-          // --- Login View ---
-          <LoginForm onSwitch={handleSwitchView} onLoginSuccess={handleLoginSuccess} />
+          <LoginForm
+            onSwitch={handleSwitchToRegister}
+            onForgotPassword={handleSwitchToForgot}
+            onLoginSuccess={handleSuccess}
+          />
+        ) : currentView === 'register' ? (
+          <RegisterForm onSwitch={handleSwitchToLogin} onRegisterSuccess={handleSuccess} />
         ) : (
-          // --- Register View ---
-          <RegisterForm onSwitch={handleSwitchView} onRegisterSuccess={handleRegisterSuccess} />
+          <ForgotPasswordForm onBack={handleSwitchToLogin} onSuccess={handleSuccess} />
         )}
       </DialogContent>
     </Dialog>

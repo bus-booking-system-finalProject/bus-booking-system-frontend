@@ -5,6 +5,9 @@ export interface UserProfile {
   email: string;
   role: 'USER' | 'ADMIN';
   createdAt: string;
+  fullName?: string;
+  phoneNumber?: string;
+  avatarUrl?: string;
 }
 
 export interface UserProfileResponse {

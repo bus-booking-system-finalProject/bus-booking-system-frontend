@@ -94,6 +94,11 @@ function Header() {
     navigate({ to: '/history' });
   };
 
+  const handleNavigateProfile = () => {
+    handleCloseUserMenu();
+    navigate({ to: '/profile' });
+  };
+
   return (
     <AppBar position="sticky" sx={{ bgcolor: '#0060c4', color: 'white', boxShadow: 0 }}>
       <Container maxWidth="xl">
@@ -293,7 +298,7 @@ function Header() {
                     <History sx={{ mr: 1, color: 'text.secondary' }} /> Lịch sử đặt vé
                   </MenuItem>
 
-                  <MenuItem onClick={handleCloseUserMenu}>
+                  <MenuItem onClick={handleNavigateProfile}>
                     <AccountCircle sx={{ mr: 1, color: 'text.secondary' }} /> Tài khoản
                   </MenuItem>
                   <MenuItem onClick={handleLogout}>

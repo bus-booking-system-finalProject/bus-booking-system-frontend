@@ -1,9 +1,8 @@
 import ReactDOM from 'react-dom/client';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
-// 1. IMPORT MUI
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import theme from './theme'; // File theme.ts
+import theme from './theme';
 
 import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx';
 import { getContext } from './integrations/tanstack-query/client.ts';
@@ -11,12 +10,16 @@ import './styles.css';
 import reportWebVitals from './reportWebVitals.ts';
 import { routeTree } from './routeTree.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
+import { useAuth } from './hooks/useAuth'; // Import useAuth hook
 
 const TanStackQueryProviderContext = getContext();
+
+// 1. Create Router (Context will be filled at runtime)
 const router = createRouter({
   routeTree,
   context: {
     ...TanStackQueryProviderContext,
+    auth: undefined!, // Initial undefined, will be injected in App
   },
   defaultPreload: 'intent',
   scrollRestoration: true,
@@ -30,20 +33,37 @@ declare module '@tanstack/react-router' {
   }
 }
 
+// 2. Create an Inner App Component to Bridge Auth -> Router
+function InnerApp() {
+  const auth = useAuth(); // Get current auth state
+
+  return (
+    <RouterProvider
+      router={router}
+      // 3. Inject dynamic Auth context here
+      context={{
+        auth: {
+          isLoggedIn: auth.isLoggedIn,
+          user: auth.user,
+          isLoadingUser: auth.isLoadingUser,
+        },
+      }}
+      basepath="/bus-booking-system-frontend/"
+    />
+  );
+}
+
 const rootElement = document.getElementById('app');
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <>
-      {/* add theme provider */}
       <ThemeProvider theme={theme}>
-        {/* CssBaseline giúp reset CSS trình duyệt và áp dụng nền mặc định từ theme */}
         <CssBaseline />
-
         <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
           <AuthProvider>
-            {/* RouterProvider will render the app based on the theme */}
-            <RouterProvider router={router} basepath="/bus-booking-system-frontend/" />
+            {/* 4. Render the InnerApp instead of RouterProvider directly */}
+            <InnerApp />
           </AuthProvider>
         </TanStackQueryProvider.Provider>
       </ThemeProvider>
