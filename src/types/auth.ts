@@ -3,11 +3,13 @@ export type UserRole = 'USER' | 'ADMIN';
 export interface UserProfile {
   id: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  role: UserRole;
   createdAt: string;
+  // --- NEW FIELDS ---
   fullName?: string;
   phoneNumber?: string;
   avatarUrl?: string;
+  enabled: boolean;
 }
 
 export interface UserProfileResponse {

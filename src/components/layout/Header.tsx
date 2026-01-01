@@ -88,7 +88,6 @@ function Header() {
     navigate({ to: '/' });
   };
 
-  // --- NEW HANDLER FOR HISTORY ---
   const handleNavigateHistory = () => {
     handleCloseUserMenu();
     navigate({ to: '/history' });
@@ -271,7 +270,11 @@ function Header() {
               <>
                 <Tooltip title="Tài khoản">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt={user.email} sx={{ bgcolor: 'primary.dark' }}>
+                    <Avatar
+                      alt={user.email}
+                      src={user.avatarUrl} // <--- Updated here
+                      sx={{ bgcolor: 'primary.dark' }}
+                    >
                       {user.email ? user.email[0].toUpperCase() : null}
                     </Avatar>
                   </IconButton>
@@ -293,7 +296,6 @@ function Header() {
                   </Box>
                   <Divider />
 
-                  {/* --- NEW HISTORY ITEM --- */}
                   <MenuItem onClick={handleNavigateHistory}>
                     <History sx={{ mr: 1, color: 'text.secondary' }} /> Lịch sử đặt vé
                   </MenuItem>
