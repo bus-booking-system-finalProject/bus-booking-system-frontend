@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Stack, Pagination } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
 import TripCard from './TripCard';
 import { getTripSeats } from '@/lib/api/trips';
 import type { Trip, Seat } from '@/types/TripTypes';
 import { useSeatTransaction } from '@/hooks/useSeatTransaction';
+import { socket } from '@/lib/utils/socket';
 
 interface TripListProps {
   trips: Trip[];
@@ -17,12 +18,36 @@ interface TripListProps {
 
 const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChange }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // --- 1. VIEW STATE ---
   // Booking: Only one ID allowed (Single Active)
   const [bookingTripId, setBookingTripId] = useState<string | null>(null);
   // Details: Multiple IDs allowed
   const [openDetailsIds, setOpenDetailsIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!bookingTripId) return;
+
+    socket.connect();
+
+    // Chỉ join room khi đã kết nối thành công
+    socket.on('connect', () => {
+      console.log('Socket connected, joining room:', bookingTripId);
+      socket.emit('join_trip', bookingTripId);
+    });
+
+    socket.on('seat_update', (data) => {
+      console.log('Real-time seat update:', data); // Kiểm tra xem log này có hiện không
+      queryClient.invalidateQueries({ queryKey: ['trip-seats', bookingTripId] });
+    });
+
+    return () => {
+      socket.off('seat_update');
+      socket.off('connect');
+      socket.disconnect();
+    };
+  }, [bookingTripId]);
 
   // --- 2. BOOKING DATA STATE (Shared) ---
   const [activeTab, setActiveTab] = useState(0);
