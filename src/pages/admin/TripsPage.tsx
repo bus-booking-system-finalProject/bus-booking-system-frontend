@@ -87,22 +87,22 @@ export default function TripsPage() {
       if (trip) {
         setEditingId(trip.tripId);
 
-        // Reverse lookup: DTO -> ID
+        // Reverse lookup: DTO -> ID (use route.name which contains "Origin - Destination")
         const matchedRoute = routes.find(
-          (r) => r.origin === trip.route.origin && r.destination === trip.route.destination,
+          (r) => `${r.origin} - ${r.destination}` === trip.route.name,
         );
         const matchedBus = buses.find((b) => b.model === trip.bus.model);
 
         reset({
           routeId: matchedRoute?.id || '',
           busId: matchedBus?.id || '',
-          departureTime: trip.schedule.departureTime
-            ? format(parseISO(trip.schedule.departureTime), "yyyy-MM-dd'T'HH:mm")
+          departureTime: trip.schedules?.departureTime
+            ? format(parseISO(trip.schedules.departureTime), "yyyy-MM-dd'T'HH:mm")
             : '',
-          arrivalTime: trip.schedule.arrivalTime
-            ? format(parseISO(trip.schedule.arrivalTime), "yyyy-MM-dd'T'HH:mm")
+          arrivalTime: trip.schedules?.arrivalTime
+            ? format(parseISO(trip.schedules.arrivalTime), "yyyy-MM-dd'T'HH:mm")
             : '',
-          basePrice: trip.pricing.basePrice,
+          basePrice: trip.pricing?.original ?? 0,
           status: trip.status,
         });
       } else {
@@ -139,9 +139,11 @@ export default function TripsPage() {
   const onSubmit: SubmitHandler<TripFormValues> = (data) => {
     // FIX: Strict typing for the payload
     const payload: TripPayload = {
-      ...data,
+      routeId: data.routeId,
+      busId: data.busId,
       departureTime: new Date(data.departureTime).toISOString(),
       arrivalTime: new Date(data.arrivalTime).toISOString(),
+      originalPrice: data.basePrice, // Map form field to backend field name
       status: data.status as TripStatus,
     };
 
@@ -167,58 +169,88 @@ export default function TripsPage() {
         field: 'route',
         headerName: 'Route',
         width: 250,
-        renderCell: (params) => (
-          <Stack>
-            <Typography variant="body2" fontWeight="bold">
-              {params.row.route.origin} → {params.row.route.destination}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {params.row.route.durationMinutes} mins
-            </Typography>
-          </Stack>
-        ),
+        renderCell: (params) => {
+          const route = params.row.route;
+          if (!route) {
+            return (
+              <Typography variant="body2" color="text.secondary">
+                N/A
+              </Typography>
+            );
+          }
+          return (
+            <Stack>
+              <Typography variant="body2" fontWeight="bold">
+                {route.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {route.durationMinutes} mins
+              </Typography>
+            </Stack>
+          );
+        },
       },
       {
         field: 'bus',
         headerName: 'Bus',
         width: 200,
-        renderCell: (params) => (
-          <Stack direction="row" alignItems="center" gap={1}>
-            <DirectionsBus fontSize="small" color="action" />
-            <Box>
-              <Typography variant="body2">{params.row.bus.model}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {params.row.bus.type}
+        renderCell: (params) => {
+          const bus = params.row.bus;
+          if (!bus) {
+            return (
+              <Typography variant="body2" color="text.secondary">
+                N/A
               </Typography>
-            </Box>
-          </Stack>
-        ),
+            );
+          }
+          return (
+            <Stack direction="row" alignItems="center" gap={1}>
+              <DirectionsBus fontSize="small" color="action" />
+              <Box>
+                <Typography variant="body2">{bus.model}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {bus.type}
+                </Typography>
+              </Box>
+            </Stack>
+          );
+        },
       },
       {
-        field: 'schedule',
+        field: 'schedules',
         headerName: 'Schedule',
         width: 220,
-        renderCell: (params) => (
-          <Stack spacing={0.5} py={1}>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="body2" fontWeight={500}>
-                Dep: {format(parseISO(params.row.schedule.departureTime), 'dd/MM HH:mm')}
+        renderCell: (params) => {
+          const schedules = params.row.schedules;
+          if (!schedules?.departureTime || !schedules?.arrivalTime) {
+            return (
+              <Typography variant="body2" color="text.secondary">
+                N/A
               </Typography>
-            </Box>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="caption" color="text.secondary">
-                Arr: {format(parseISO(params.row.schedule.arrivalTime), 'dd/MM HH:mm')}
-              </Typography>
-            </Box>
-          </Stack>
-        ),
+            );
+          }
+          return (
+            <Stack spacing={0.5} py={1}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="body2" fontWeight={500}>
+                  Dep: {format(parseISO(schedules.departureTime), 'dd/MM HH:mm')}
+                </Typography>
+              </Box>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="caption" color="text.secondary">
+                  Arr: {format(parseISO(schedules.arrivalTime), 'dd/MM HH:mm')}
+                </Typography>
+              </Box>
+            </Stack>
+          );
+        },
       },
       {
         field: 'price',
         headerName: 'Price',
         width: 140,
-        // FIX: Handle safe valueGetter
-        valueGetter: (_, row) => row.pricing?.basePrice ?? 0,
+        // FIX: Handle safe valueGetter - use 'original' (matches backend)
+        valueGetter: (_, row) => row.pricing?.original ?? 0,
         valueFormatter: (value: number) =>
           new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value),
       },
