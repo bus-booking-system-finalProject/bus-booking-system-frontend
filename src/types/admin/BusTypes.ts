@@ -9,6 +9,7 @@ export interface BusModelRequest {
     isLimousine: boolean;
     hasWC: boolean;
     seats: Seat[];
+    keptImages?: string[];
 }
 
 export interface BusModelResponse {
@@ -19,6 +20,7 @@ export interface BusModelResponse {
     isLimousine: boolean;
     hasWC: boolean;
     seatCapacity: number;
+    images?: string[];
 }
 
 export interface BusRequest {

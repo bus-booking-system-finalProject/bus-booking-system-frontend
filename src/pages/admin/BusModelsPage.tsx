@@ -23,6 +23,11 @@ import {
   Divider,
   useTheme,
   useMediaQuery,
+  Tabs,
+  Tab,
+  ImageList,
+  ImageListItem,
+  ImageListItemBar,
 } from '@mui/material';
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
 import {
@@ -35,6 +40,9 @@ import {
   Eraser,
   PlusSquare,
   Save,
+  Image as ImageIcon,
+  X,
+  Upload,
 } from 'lucide-react';
 import { useBusModels } from '@/hooks/admin/useBusModels';
 import type { BusModelRequest, BusTypes, Seat } from '@/types/admin/BusTypes';
@@ -42,6 +50,29 @@ import type { BusModelRequest, BusTypes, Seat } from '@/types/admin/BusTypes';
 const BUS_TYPES: BusTypes[] = ['SEATER', 'SLEEPER', 'CABIN'];
 
 type ToolMode = 'select' | 'add' | 'erase';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function CustomTabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`bus-model-tabpanel-${index}`}
+      aria-labelledby={`bus-model-tab-${index}`}
+      {...other}
+      style={{ height: '100%' }}
+    >
+      {value === index && <Box sx={{ p: 2, height: '100%' }}>{children}</Box>}
+    </div>
+  );
+}
 
 export default function BusModelsPage() {
   const theme = useTheme();
@@ -53,6 +84,7 @@ export default function BusModelsPage() {
   const [open, setOpen] = useState(false);
   const [viewOnly, setViewOnly] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [tabValue, setTabValue] = useState(0);
 
   // Tool Mode State
   const [toolMode, setToolMode] = useState<ToolMode>('select');
@@ -75,7 +107,12 @@ export default function BusModelsPage() {
     isLimousine: false,
     hasWC: false,
     seats: [],
+    keptImages: [],
   });
+
+  // Image State
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
 
   const { data: busModelDetails, isLoading: loadingDetails } = useBusModelDetails(editingId);
 
@@ -90,14 +127,19 @@ export default function BusModelsPage() {
         isLimousine: busModelDetails.details.isLimousine,
         hasWC: busModelDetails.details.hasWC,
         seats: busModelDetails.seats,
+        keptImages: busModelDetails.details.images || [],
       });
+      setExistingImages(busModelDetails.details.images || []);
     }
   }, [busModelDetails, editingId]);
 
   const handleOpen = (id: string | null = null, view: boolean = false) => {
     setEditingId(id);
     setViewOnly(view);
-    setToolMode('select'); // Reset tool
+    setToolMode('select');
+    setTabValue(0);
+    setSelectedFiles([]);
+    setExistingImages([]);
 
     if (!id) {
       setFormData({
@@ -109,6 +151,7 @@ export default function BusModelsPage() {
         isLimousine: false,
         hasWC: false,
         seats: [],
+        keptImages: [],
       });
     }
     setOpen(true);
@@ -119,8 +162,27 @@ export default function BusModelsPage() {
     setEditingId(null);
   };
 
-  // --- Seat Interaction Logic ---
+  // Image Handling
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...files]);
+    }
+  };
 
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingImage = (url: string) => {
+    setExistingImages((prev) => prev.filter((img) => img !== url));
+    setFormData((prev) => ({
+      ...prev,
+      keptImages: prev.keptImages?.filter((img) => img !== url),
+    }));
+  };
+
+  // Seat Logic
   const handleCellClick = (deck: number, row: number, col: number) => {
     if (viewOnly) return;
 
@@ -129,7 +191,6 @@ export default function BusModelsPage() {
     );
     const existingSeat = existingSeatIndex !== -1 ? formData.seats[existingSeatIndex] : null;
 
-    // 1. ERASER MODE: Remove seat if clicked
     if (toolMode === 'erase') {
       if (existingSeat) {
         const newSeats = [...formData.seats];
@@ -139,7 +200,6 @@ export default function BusModelsPage() {
       return;
     }
 
-    // 2. ADD MODE: Instant add if empty
     if (toolMode === 'add') {
       if (!existingSeat) {
         const deckChar = deck === 1 ? 'A' : 'B';
@@ -158,14 +218,11 @@ export default function BusModelsPage() {
       return;
     }
 
-    // 3. SELECT/EDIT MODE (Default)
     if (existingSeat) {
-      // Edit existing seat
       setCurrentSeat(existingSeat);
       setPendingSeatLoc(null);
       setSeatDialogOpen(true);
     } else {
-      // Prompt to create new seat with custom code
       setPendingSeatLoc({ deck, row, col });
       const deckChar = deck === 1 ? 'A' : 'B';
       const defaultCode = `${deckChar}${row.toString().padStart(2, '0')}`;
@@ -181,9 +238,7 @@ export default function BusModelsPage() {
 
   const handleSaveSeat = () => {
     if (!currentSeat) return;
-
     setFormData((prev) => {
-      // Remove existing seat at this location if it exists (update logic)
       const filteredSeats = prev.seats.filter(
         (s) =>
           !(s.deck === currentSeat.deck && s.row === currentSeat.row && s.col === currentSeat.col),
@@ -210,11 +265,13 @@ export default function BusModelsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Ensure we send the correct structure (id separate from body for update)
     if (editingId) {
-      updateBusModel.mutate({ id: editingId, data: formData }, { onSuccess: handleClose });
+      updateBusModel.mutate(
+        { id: editingId, data: formData, images: selectedFiles },
+        { onSuccess: handleClose },
+      );
     } else {
-      createBusModel.mutate(formData, { onSuccess: handleClose });
+      createBusModel.mutate({ model: formData, images: selectedFiles }, { onSuccess: handleClose });
     }
   };
 
@@ -234,7 +291,6 @@ export default function BusModelsPage() {
       >
         {[...Array(formData.totalDecks)].map((_, i) => {
           const deckNum = i + 1;
-
           return (
             <Paper
               key={deckNum}
@@ -249,7 +305,6 @@ export default function BusModelsPage() {
               <Typography align="center" fontWeight="bold" mb={2} color="text.secondary">
                 {deckNum === 1 ? 'LOWER DECK' : 'UPPER DECK'}
               </Typography>
-
               <Box
                 sx={{
                   display: 'grid',
@@ -261,13 +316,13 @@ export default function BusModelsPage() {
                 {Array.from({ length: rows * cols }).map((_, idx) => {
                   const row = Math.floor(idx / cols) + 1;
                   const col = (idx % cols) + 1;
-
                   const seat = formData.seats.find(
                     (s) => s.deck === deckNum && s.row === row && s.col === col,
                   );
 
                   return (
                     <Box
+                      key={`${deckNum}-${row}-${col}`}
                       onClick={() => handleCellClick(deckNum, row, col)}
                       sx={{
                         width: 45,
@@ -279,30 +334,16 @@ export default function BusModelsPage() {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        cursor: viewOnly
-                          ? 'default'
-                          : toolMode === 'erase' && seat
-                            ? 'alias'
-                            : toolMode === 'add' && !seat
-                              ? 'copy'
-                              : 'pointer',
-                        transition: 'all 0.1s',
+                        cursor: viewOnly ? 'default' : 'pointer',
                         '&:hover': !viewOnly
                           ? {
-                              bgcolor: seat
-                                ? toolMode === 'erase'
-                                  ? '#ffebee'
-                                  : '#e3f2fd' // Red hint for erase
-                                : toolMode === 'add'
-                                  ? '#e8f5e9'
-                                  : 'rgba(0,0,0,0.05)', // Green hint for add
-                              borderColor: toolMode === 'erase' && seat ? '#d32f2f' : undefined,
+                              bgcolor: '#e3f2fd',
                             }
                           : {},
                         position: 'relative',
                       }}
                     >
-                      {seat ? (
+                      {seat && (
                         <>
                           <Armchair
                             size={18}
@@ -319,10 +360,6 @@ export default function BusModelsPage() {
                             {seat.code}
                           </Typography>
                         </>
-                      ) : (
-                        <Typography variant="caption" sx={{ color: '#bdbdbd', fontSize: '0.6rem' }}>
-                          {toolMode === 'add' ? '+' : ''}
-                        </Typography>
                       )}
                     </Box>
                   );
@@ -336,12 +373,8 @@ export default function BusModelsPage() {
   };
 
   const columns: GridColDef[] = [
-    { field: 'name', headerName: 'Model Name', minWidth: 260 },
-    {
-      field: 'typeDisplay',
-      headerName: 'Seats',
-      minWidth: 260,
-    },
+    { field: 'name', headerName: 'Model Name', minWidth: 200 },
+    { field: 'typeDisplay', headerName: 'Description', minWidth: 260 },
     {
       field: 'type',
       headerName: 'Type',
@@ -351,16 +384,23 @@ export default function BusModelsPage() {
     {
       field: 'seatCapacity',
       headerName: 'Seats',
-      width: 100,
+      width: 80,
       align: 'center',
-      headerAlign: 'center',
+    },
+    {
+      field: 'images',
+      headerName: 'Images',
+      width: 80,
+      align: 'center',
+      renderCell: (params) => (
+        <Chip label={params.row.images?.length || 0} size="small" icon={<ImageIcon size={14} />} />
+      ),
     },
     {
       field: 'actions',
       headerName: 'Actions',
       flex: 1,
       align: 'right',
-      headerAlign: 'right',
       renderCell: (params) => (
         <Stack
           direction="row"
@@ -394,7 +434,7 @@ export default function BusModelsPage() {
             Bus Models
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage seating layouts
+            Manage seating layouts and images
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<Plus />} onClick={() => handleOpen()}>
@@ -412,255 +452,291 @@ export default function BusModelsPage() {
         />
       </Card>
 
-      {/* --- Main Edit/Create Dialog --- */}
       <Dialog open={open} onClose={handleClose} maxWidth="xl" fullScreen={isMobile}>
         <DialogTitle
-          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0 }}
         >
-          {viewOnly ? 'View Seat Map' : editingId ? 'Edit Bus Model' : 'New Bus Model'}
-          <IconButton onClick={handleClose} size="small" sx={{ ml: 2 }}>
-            {/* Close Icon placeholder or just standard X */}X
+          <Tabs value={tabValue} onChange={(_, val) => setTabValue(val)} sx={{ px: 2, pt: 1 }}>
+            <Tab label="Configuration" icon={<Armchair size={18} />} iconPosition="start" />
+            <Tab
+              label={`Images (${existingImages.length + selectedFiles.length})`}
+              icon={<ImageIcon size={18} />}
+              iconPosition="start"
+            />
+          </Tabs>
+          <IconButton onClick={handleClose} size="small" sx={{ mr: 2 }}>
+            <X />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers sx={{ p: { xs: 2, md: 3 } }}>
-          <Box component="form" onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              {/* Left Column: Configuration Form */}
-              <Grid sx={{ borderRight: { md: '1px solid #eee' }, pr: { md: 2 }, xs: 12, md: 3 }}>
-                <Stack spacing={2}>
-                  <TextField
-                    label="Model Name"
-                    required
-                    fullWidth
-                    value={formData.name}
-                    disabled={viewOnly}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                  <TextField
-                    select
-                    label="Type"
-                    fullWidth
-                    value={formData.type}
-                    disabled={viewOnly}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as BusTypes })}
-                  >
-                    {BUS_TYPES.map((t) => (
-                      <MenuItem key={t} value={t}>
-                        {t}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-
-                  <Divider />
-
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Grid Dimensions
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
+        <Divider />
+        <DialogContent sx={{ p: 0 }}>
+          <Box component="form" onSubmit={handleSubmit} sx={{ height: '100%' }}>
+            {/* Tab 1: Configuration & Seat Map */}
+            <CustomTabPanel value={tabValue} index={0}>
+              <Grid container spacing={3} sx={{ height: '100%' }}>
+                <Grid sx={{ borderRight: { md: '1px solid #eee' }, xs: 12, md: 3 }}>
+                  <Stack spacing={2}>
                     <TextField
-                      label="Decks"
-                      type="number"
-                      size="small"
-                      slotProps={{
-                        htmlInput: { min: 1, max: 3 },
-                      }}
-                      value={formData.totalDecks}
+                      label="Model Name"
+                      required
+                      fullWidth
+                      value={formData.name}
                       disabled={viewOnly}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) {
-                          setFormData({ ...formData, totalDecks: Math.min(3, Math.max(1, val)) });
-                        }
-                      }}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                     <TextField
-                      label="Rows"
-                      type="number"
-                      size="small"
-                      slotProps={{
-                        htmlInput: { min: 1, max: 15 },
-                      }}
-                      value={formData.gridRows}
+                      select
+                      label="Type"
+                      fullWidth
+                      value={formData.type}
                       disabled={viewOnly}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) {
-                          setFormData({ ...formData, gridRows: Math.min(15, Math.max(1, val)) });
-                        }
-                      }}
-                    />
-                    <TextField
-                      label="Cols"
-                      type="number"
-                      size="small"
-                      slotProps={{
-                        htmlInput: { min: 1, max: 5 },
-                      }}
-                      value={formData.gridColumns}
-                      disabled={viewOnly}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) {
-                          setFormData({ ...formData, gridColumns: Math.min(5, Math.max(1, val)) });
-                        }
-                      }}
-                    />
-                  </Stack>
-
-                  <Stack direction="row" spacing={1}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={formData.isLimousine}
-                          disabled={viewOnly}
-                          onChange={(e) =>
-                            setFormData({ ...formData, isLimousine: e.target.checked })
-                          }
-                        />
+                      onChange={(e) =>
+                        setFormData({ ...formData, type: e.target.value as BusTypes })
                       }
-                      label="Limo"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={formData.hasWC}
-                          disabled={viewOnly}
-                          onChange={(e) => setFormData({ ...formData, hasWC: e.target.checked })}
-                        />
-                      }
-                      label="WC"
-                    />
-                  </Stack>
-                </Stack>
-              </Grid>
-
-              {/* Right Column: Visualizer & Tools */}
-              <Grid sx={{ xs: 12, md: 9 }}>
-                <Stack direction="column" spacing={2} alignItems="center">
-                  {/* --- Tool Bar --- */}
-                  {!viewOnly && (
-                    <Paper elevation={0} sx={{ border: '1px solid #ddd', p: 0.5, borderRadius: 2 }}>
-                      <ToggleButtonGroup
-                        value={toolMode}
-                        exclusive
-                        onChange={(_, newMode) => {
-                          if (newMode) setToolMode(newMode);
-                        }}
-                        size="small"
-                        aria-label="seat tools"
-                      >
-                        <ToggleButton value="select" aria-label="select">
-                          <MousePointer2 size={18} style={{ marginRight: 8 }} />
-                          Select & Edit
-                        </ToggleButton>
-                        <ToggleButton value="add" aria-label="add seat">
-                          <PlusSquare size={18} style={{ marginRight: 8 }} />
-                          Paint Seat
-                        </ToggleButton>
-                        <ToggleButton value="erase" aria-label="erase">
-                          <Eraser size={18} style={{ marginRight: 8 }} />
-                          Eraser
-                        </ToggleButton>
-                      </ToggleButtonGroup>
-                    </Paper>
-                  )}
-
-                  {/* --- Map Container --- */}
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 2,
-                      width: '100%',
-                      minHeight: 450,
-                      bgcolor: '#fafafa',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      width="100%"
-                      mb={2}
-                      px={2}
                     >
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        Seat Map Preview ({formData.seats.length} seats)
-                      </Typography>
-                      <Chip
-                        label={toolMode.toUpperCase() + ' MODE'}
+                      {BUS_TYPES.map((t) => (
+                        <MenuItem key={t} value={t}>
+                          {t}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+
+                    <Divider />
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Dimensions
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <TextField
+                        label="Decks"
+                        type="number"
                         size="small"
-                        color={
-                          toolMode === 'select'
-                            ? 'default'
-                            : toolMode === 'add'
-                              ? 'success'
-                              : 'error'
+                        value={formData.totalDecks}
+                        disabled={viewOnly}
+                        onChange={(e) =>
+                          setFormData({ ...formData, totalDecks: parseInt(e.target.value) || 1 })
                         }
-                        variant="outlined"
+                      />
+                      <TextField
+                        label="Rows"
+                        type="number"
+                        size="small"
+                        value={formData.gridRows}
+                        disabled={viewOnly}
+                        onChange={(e) =>
+                          setFormData({ ...formData, gridRows: parseInt(e.target.value) || 1 })
+                        }
+                      />
+                      <TextField
+                        label="Cols"
+                        type="number"
+                        size="small"
+                        value={formData.gridColumns}
+                        disabled={viewOnly}
+                        onChange={(e) =>
+                          setFormData({ ...formData, gridColumns: parseInt(e.target.value) || 1 })
+                        }
                       />
                     </Stack>
 
-                    {renderSeatMap()}
+                    <Stack direction="row" spacing={1}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.isLimousine}
+                            disabled={viewOnly}
+                            onChange={(e) =>
+                              setFormData({ ...formData, isLimousine: e.target.checked })
+                            }
+                          />
+                        }
+                        label="Limo"
+                      />
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.hasWC}
+                            disabled={viewOnly}
+                            onChange={(e) => setFormData({ ...formData, hasWC: e.target.checked })}
+                          />
+                        }
+                        label="WC"
+                      />
+                    </Stack>
+                  </Stack>
+                </Grid>
 
+                <Grid sx={{ xs: 12, md: 9 }}>
+                  <Stack spacing={2} alignItems="center">
                     {!viewOnly && (
-                      <Typography
-                        variant="caption"
-                        sx={{ mt: 2, color: 'text.secondary', fontStyle: 'italic' }}
+                      <ToggleButtonGroup
+                        value={toolMode}
+                        exclusive
+                        onChange={(_, newMode) => newMode && setToolMode(newMode)}
+                        size="small"
                       >
-                        {toolMode === 'select' &&
-                          '* Click seat to edit code. Click empty to add custom seat.'}
-                        {toolMode === 'add' && '* Click empty boxes to instantly add seats.'}
-                        {toolMode === 'erase' && '* Click seats to remove them.'}
-                      </Typography>
+                        <ToggleButton value="select">
+                          <MousePointer2 size={16} style={{ marginRight: 8 }} /> Select
+                        </ToggleButton>
+                        <ToggleButton value="add">
+                          <PlusSquare size={16} style={{ marginRight: 8 }} /> Paint
+                        </ToggleButton>
+                        <ToggleButton value="erase">
+                          <Eraser size={16} style={{ marginRight: 8 }} /> Erase
+                        </ToggleButton>
+                      </ToggleButtonGroup>
                     )}
-                  </Paper>
-                </Stack>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        width: '100%',
+                        minHeight: 400,
+                        bgcolor: '#fafafa',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {renderSeatMap()}
+                    </Paper>
+                  </Stack>
+                </Grid>
               </Grid>
-            </Grid>
+            </CustomTabPanel>
 
+            {/* Tab 2: Images */}
+            <CustomTabPanel value={tabValue} index={1}>
+              <Stack spacing={3}>
+                {!viewOnly && (
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<Upload />}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Upload Images
+                    <input
+                      type="file"
+                      hidden
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                    />
+                  </Button>
+                )}
+
+                <Typography variant="subtitle2">
+                  Gallery ({existingImages.length} saved, {selectedFiles.length} new)
+                </Typography>
+
+                <ImageList cols={isMobile ? 2 : 5} rowHeight={160} gap={16}>
+                  {/* Existing Images */}
+                  {existingImages.map((url, index) => (
+                    <ImageListItem key={`exist-${index}`}>
+                      <img
+                        src={url}
+                        alt={`Bus Model ${index}`}
+                        loading="lazy"
+                        style={{ height: '100%', objectFit: 'cover', borderRadius: 8 }}
+                      />
+                      {!viewOnly && (
+                        <ImageListItemBar
+                          position="top"
+                          sx={{ background: 'transparent' }}
+                          actionIcon={
+                            <IconButton
+                              sx={{ color: 'white', bgcolor: 'rgba(0,0,0,0.5)', m: 0.5 }}
+                              onClick={() => removeExistingImage(url)}
+                            >
+                              <X size={16} />
+                            </IconButton>
+                          }
+                        />
+                      )}
+                    </ImageListItem>
+                  ))}
+
+                  {/* New Selected Files */}
+                  {selectedFiles.map((file, index) => (
+                    <ImageListItem key={`new-${index}`}>
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt="New Upload"
+                        loading="lazy"
+                        style={{
+                          height: '100%',
+                          objectFit: 'cover',
+                          borderRadius: 8,
+                          opacity: 0.8,
+                        }}
+                      />
+                      <ImageListItemBar
+                        title={<Chip label="New" color="success" size="small" />}
+                        position="top"
+                        sx={{ background: 'transparent' }}
+                        actionIcon={
+                          !viewOnly ? (
+                            <IconButton
+                              sx={{ color: 'white', bgcolor: 'rgba(0,0,0,0.5)', m: 0.5 }}
+                              onClick={() => removeSelectedFile(index)}
+                            >
+                              <X size={16} />
+                            </IconButton>
+                          ) : null
+                        }
+                      />
+                    </ImageListItem>
+                  ))}
+                </ImageList>
+
+                {existingImages.length === 0 && selectedFiles.length === 0 && (
+                  <Typography color="text.secondary" align="center" py={5}>
+                    No images available.
+                  </Typography>
+                )}
+              </Stack>
+            </CustomTabPanel>
+
+            {/* Actions Footer */}
             {!viewOnly && (
-              <Stack direction="row" justifyContent="flex-end" spacing={2} mt={3}>
-                <Button onClick={handleClose} color="inherit">
-                  Cancel
-                </Button>
+              <Box
+                sx={{
+                  p: 2,
+                  borderTop: '1px solid #eee',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 2,
+                }}
+              >
+                <Button onClick={handleClose}>Cancel</Button>
                 <Button type="submit" variant="contained" startIcon={<Save size={18} />}>
                   Save Changes
                 </Button>
-              </Stack>
+              </Box>
             )}
           </Box>
         </DialogContent>
       </Dialog>
 
-      {/* Seat Detail Edit Dialog */}
+      {/* Seat Edit Dialog (Same as before) */}
       <Dialog open={seatDialogOpen} onClose={() => setSeatDialogOpen(false)} maxWidth="xs">
-        <DialogTitle>{pendingSeatLoc ? 'Add New Seat' : 'Edit Seat Details'}</DialogTitle>
+        <DialogTitle>{pendingSeatLoc ? 'Add Seat' : 'Edit Seat'}</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Seat Code"
-              autoFocus
-              value={currentSeat?.code || ''}
-              onChange={(e) =>
-                setCurrentSeat((prev) => (prev ? { ...prev, code: e.target.value } : null))
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault(); // Prevent form submission if inside a form
-                  handleSaveSeat();
-                }
-              }}
-              helperText="Examples: A01, B05, 1A, 2B"
-            />
-          </Stack>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Seat Code"
+            fullWidth
+            value={currentSeat?.code || ''}
+            onChange={(e) =>
+              setCurrentSeat((prev) => (prev ? { ...prev, code: e.target.value } : null))
+            }
+          />
         </DialogContent>
         <DialogActions>
           {!pendingSeatLoc && (
-            <Button onClick={handleDeleteSeat} color="error" sx={{ mr: 'auto' }}>
-              Delete Seat
+            <Button color="error" onClick={handleDeleteSeat}>
+              Delete
             </Button>
           )}
           <Button onClick={() => setSeatDialogOpen(false)}>Cancel</Button>

@@ -21,7 +21,7 @@ export const useBusModels = () => {
     });
 
     const createBusModel = useMutation({
-        mutationFn: BusModelsApi.create,
+        mutationFn: (data: { model: BusModelRequest; images: File[] }) => BusModelsApi.create(data),
         onSuccess: (res) => {
             queryClient.invalidateQueries({ queryKey: ['busModels'] });
             showToast(res.message || 'Bus Model created successfully', 'success');
@@ -30,14 +30,11 @@ export const useBusModels = () => {
     });
 
     const updateBusModel = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: BusModelRequest }) =>
-            BusModelsApi.update(id, data),
+        mutationFn: ({ id, data, images }: { id: string; data: BusModelRequest; images: File[] }) =>
+            BusModelsApi.update(id, { model: data, images }),
         onSuccess: (res, variables) => {
-            // Refresh the list
             queryClient.invalidateQueries({ queryKey: ['busModels'] });
-            // Refresh the specific details of the model being edited
             queryClient.invalidateQueries({ queryKey: ['busModelDetails', variables.id] });
-
             showToast(res.message || 'Bus Model updated successfully', 'success');
         },
         onError: (err: ApiErrorResponse) => showToast(err?.message || 'Failed to update', 'error')

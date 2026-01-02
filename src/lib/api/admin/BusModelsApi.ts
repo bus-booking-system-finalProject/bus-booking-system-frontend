@@ -7,17 +7,29 @@ export const BusModelsApi = {
         const { data } = await apiPrivate.get<ApiResponse<BusModelResponse[]>>('/admin/buses/models');
         return data.data;
     },
-    create: async (model: BusModelRequest) => {
-        const { data } = await apiPrivate.post<ApiResponse<BusModelResponse>>('/admin/buses/models', model);
-        return data;
+    create: async (data: { model: BusModelRequest; images: File[] }) => {
+        const formData = new FormData();
+        formData.append('model', new Blob([JSON.stringify(data.model)], { type: 'application/json' }));
+        data.images.forEach((file) => formData.append('images', file));
+
+        const res = await apiPrivate.post<ApiResponse<BusModelResponse>>('/admin/buses/models', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
     },
     getDetails: async (id: string) => {
         const { data } = await apiPrivate.get<ApiResponse<BusModelDetailsResponse>>(`/admin/buses/models/${id}`);
         return data.data;
     },
-    update: async (id: string, model: BusModelRequest) => {
-        const { data } = await apiPrivate.put<ApiResponse<BusModelResponse>>(`/admin/buses/models/${id}`, model);
-        return data;
+    update: async (id: string, data: { model: BusModelRequest; images: File[] }) => {
+        const formData = new FormData();
+        formData.append('model', new Blob([JSON.stringify(data.model)], { type: 'application/json' }));
+        data.images.forEach((file) => formData.append('images', file));
+
+        const res = await apiPrivate.put<ApiResponse<BusModelResponse>>(`/admin/buses/models/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
     },
     delete: async (id: string) => {
         const { data } = await apiPrivate.delete<ApiResponse<BusModelResponse>>(`/admin/buses/models/${id}`);
