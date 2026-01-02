@@ -156,3 +156,21 @@ export const changePassword = async (oldPassword: string, newPassword: string): 
     throw new Error(getErrorMessage(err, 'Change password failed'));
   }
 };
+
+// --- NEW: Upload Avatar ---
+export const uploadAvatar = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await apiPrivate.post<{ data: string }>('/user/avatar', formData, {
+      headers: {
+        // Explicitly setting this ensures the backend identifies the multipart request
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.data;
+  } catch (err: unknown) {
+    throw new Error(getErrorMessage(err, 'Avatar upload failed'));
+  }
+};

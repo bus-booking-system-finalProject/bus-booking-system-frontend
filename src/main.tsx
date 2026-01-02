@@ -10,6 +10,8 @@ import './styles.css';
 import reportWebVitals from './reportWebVitals.ts';
 import { routeTree } from './routeTree.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
+import { SocketProvider } from './context/SocketContext.tsx';
+import { NotificationToast } from './components/common/NotificationToast.tsx';
 import { useAuth } from './hooks/useAuth'; // Import useAuth hook
 import { ToastProvider } from './context/ToastContext.tsx';
 
@@ -63,9 +65,13 @@ if (rootElement && !rootElement.innerHTML) {
         <CssBaseline />
         <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
           <AuthProvider>
-            <ToastProvider>
-              <InnerApp />
-            </ToastProvider>
+            <SocketProvider>
+              {/* Real-time notification toasts */}
+              <NotificationToast />
+              <ToastProvider>
+                <InnerApp />
+              </ToastProvider>
+            </SocketProvider>
           </AuthProvider>
         </TanStackQueryProvider.Provider>
       </ThemeProvider>

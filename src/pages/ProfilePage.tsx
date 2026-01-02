@@ -12,10 +12,14 @@ import {
   Stack,
   Alert,
   Snackbar,
+  Badge,
+  IconButton,
+  Tooltip,
+  CircularProgress,
 } from '@mui/material';
-import { Person, Lock, Save } from '@mui/icons-material';
+import { Person, Lock, Save, CameraAlt } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
-import { updateProfile, changePassword } from '@/lib/api/AuthApi';
+import { updateProfile, changePassword, uploadAvatar } from '@/lib/api/AuthApi'; // Import uploadAvatar
 import Header from '@/components/layout/Header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -26,25 +30,56 @@ const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tabIndex, setTabIndex] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   const [toast, setToast] = useState({
     open: false,
     msg: '',
     type: 'success' as 'success' | 'error',
   });
 
-  // 1. LAZY INITIALIZATION (No useEffect needed thanks to the wrapper)
   const [formData, setFormData] = useState(() => ({
     fullName: user?.fullName || '',
     phoneNumber: user?.phoneNumber || '',
     avatarUrl: user?.avatarUrl || '',
   }));
 
-  // --- Password State ---
   const [passData, setPassData] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+
+  // --- NEW: Handle File Upload ---
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 1. Validate Size (Max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ open: true, msg: 'File ảnh quá lớn (Max 5MB)', type: 'error' });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      // 2. Upload to Backend -> Cloudinary
+      const url = await uploadAvatar(file);
+
+      // 3. Update local state with new URL
+      setFormData((prev) => ({ ...prev, avatarUrl: url }));
+      setToast({ open: true, msg: 'Tải ảnh thành công! Nhớ nhấn Lưu thay đổi.', type: 'success' });
+    } catch (err: unknown) {
+      let message = 'Lỗi khi tải ảnh';
+
+      if (err instanceof Error) {
+        message = err.message;
+      }
+
+      setToast({ open: true, msg: message, type: 'error' });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleProfileSubmit = async () => {
     try {
@@ -105,14 +140,61 @@ const ProfilePage: React.FC = () => {
             {tabIndex === 0 ? (
               // --- TAB 1: PROFILE INFO ---
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
-                {/* Left Side: Avatar */}
+                {/* Left Side: Avatar with Upload Logic */}
                 <Box sx={{ textAlign: 'center', minWidth: 200 }}>
-                  <Avatar
-                    src={formData.avatarUrl}
-                    sx={{ width: 120, height: 120, fontSize: 40, mb: 2, mx: 'auto' }}
-                  >
-                    {user.email[0].toUpperCase()}
-                  </Avatar>
+                  <input
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    id="avatar-upload-button"
+                    type="file"
+                    onChange={handleFileChange}
+                    disabled={isUploading}
+                  />
+                  <label htmlFor="avatar-upload-button">
+                    <Tooltip title="Nhấn để thay đổi ảnh đại diện">
+                      <IconButton component="span" disabled={isUploading}>
+                        <Badge
+                          overlap="circular"
+                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                          badgeContent={
+                            <Box
+                              sx={{
+                                bgcolor: 'white',
+                                borderRadius: '50%',
+                                p: 0.5,
+                                border: '1px solid #ddd',
+                                display: 'flex',
+                              }}
+                            >
+                              <CameraAlt color="primary" fontSize="small" />
+                            </Box>
+                          }
+                        >
+                          <Avatar
+                            src={formData.avatarUrl}
+                            sx={{
+                              width: 120,
+                              height: 120,
+                              fontSize: 40,
+                              mb: 2,
+                              mx: 'auto',
+                              border: '1px solid #eee',
+                              opacity: isUploading ? 0.5 : 1,
+                            }}
+                          >
+                            {user.email[0].toUpperCase()}
+                          </Avatar>
+                          {isUploading && (
+                            <CircularProgress
+                              size={40}
+                              sx={{ position: 'absolute', top: 40, left: 40 }}
+                            />
+                          )}
+                        </Badge>
+                      </IconButton>
+                    </Tooltip>
+                  </label>
+
                   <Typography variant="h6" fontWeight={600}>
                     {user.email}
                   </Typography>
@@ -136,19 +218,15 @@ const ProfilePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                       fullWidth
                     />
-                    <TextField
-                      label="Avatar URL"
-                      value={formData.avatarUrl}
-                      onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                      fullWidth
-                      helperText="Nhập đường dẫn ảnh (URL)"
-                    />
+                    {/* Removed Manual URL Input since we have file upload now */}
+
                     <Button
                       variant="contained"
                       size="large"
                       startIcon={<Save />}
                       onClick={handleProfileSubmit}
                       sx={{ alignSelf: 'flex-start' }}
+                      disabled={isUploading}
                     >
                       Lưu thay đổi
                     </Button>

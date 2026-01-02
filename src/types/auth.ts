@@ -5,9 +5,11 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   createdAt: string;
+  // --- NEW FIELDS ---
   fullName?: string;
   phoneNumber?: string;
   avatarUrl?: string;
+  enabled: boolean;
 }
 
 export interface UserProfileResponse {

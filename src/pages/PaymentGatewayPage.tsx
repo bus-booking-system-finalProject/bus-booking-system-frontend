@@ -15,13 +15,22 @@ import {
   Stack,
   CircularProgress,
 } from '@mui/material';
-import { AccessTime, DirectionsBus, CalendarToday, LocationOn, Cancel } from '@mui/icons-material';
+import {
+  AccessTime,
+  DirectionsBus,
+  CalendarToday,
+  LocationOn,
+  Cancel,
+  CheckCircle,
+} from '@mui/icons-material';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils/format';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBookingById } from '@/lib/api/trips';
 import type { AxiosError } from 'axios';
 import { PayOsPayment } from '@/lib/api/PaymentApi';
 import { PaymentMethods } from '@/config/PaymentMethods';
+import { useBookingConfirmation } from '@/hooks/useSocket';
+import type { BookingConfirmedEvent } from '@/types/SocketTypes';
 
 // Helper component for Countdown
 const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
@@ -75,6 +84,8 @@ interface PaymentPageState {
 
 export const PaymentGatewayPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   // Get ticketId from query params (preferred) or state
   const location = useLocation();
   const searchParams = new URLSearchParams(location.searchStr);
@@ -86,6 +97,9 @@ export const PaymentGatewayPage = () => {
     string | 'payos' | 'domestic-card' | 'momo' | 'cash' | 'international-card'
   >('payos');
 
+  // State for real-time confirmation
+  const [isRealTimeConfirmed, setIsRealTimeConfirmed] = useState(false);
+
   // Fetch Ticket Details
   const {
     data: bookingData,
@@ -95,6 +109,17 @@ export const PaymentGatewayPage = () => {
     queryKey: ['booking', ticketId],
     queryFn: () => getBookingById(ticketId!),
     enabled: !!ticketId,
+  });
+
+  // --- REAL-TIME BOOKING CONFIRMATION ---
+  // Listen for socket events when payment is successful
+  useBookingConfirmation(bookingData?.ticketCode || null, (data: BookingConfirmedEvent) => {
+    console.log('[PaymentGatewayPage] Real-time booking confirmation received:', data);
+    if (data.status === 'CONFIRMED') {
+      setIsRealTimeConfirmed(true);
+      // Refetch booking data to update UI
+      queryClient.invalidateQueries({ queryKey: ['booking', ticketId] });
+    }
   });
 
   const payosPaymentMutation = useMutation({
@@ -153,6 +178,9 @@ export const PaymentGatewayPage = () => {
   }, [bookingData]);
 
   const { expiredAt, isPaid, isCancelled } = expirationData;
+
+  // Combine API state with real-time state
+  const isConfirmed = isPaid || isRealTimeConfirmed;
 
   if (!ticketId) {
     return (
@@ -236,12 +264,18 @@ export const PaymentGatewayPage = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* 1. Countdown Timer */}
       {/* Show only if ticket is active (not paid, not cancelled) */}
-      {!isPaid && !isCancelled && <CountdownTimer targetDate={expiredAt} />}
+      {!isConfirmed && !isCancelled && <CountdownTimer targetDate={expiredAt} />}
 
       {/* STATUS ALERTS */}
-      {isPaid && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Đơn hàng đã được thanh toán thành công!
+      {isConfirmed && (
+        <Alert
+          severity="success"
+          icon={<CheckCircle />}
+          sx={{ mb: 3, animation: isRealTimeConfirmed ? 'pulse 0.5s ease-in-out' : 'none' }}
+        >
+          {isRealTimeConfirmed
+            ? 'Thanh toán thành công! Vé của bạn đã được xác nhận.'
+            : 'Đơn hàng đã được thanh toán thành công!'}
         </Alert>
       )}
       {isCancelled && (
@@ -339,10 +373,10 @@ export const PaymentGatewayPage = () => {
                 size="large"
                 sx={{ mt: 3, py: 1.5, fontSize: '1.1rem' }}
                 onClick={handlePayment}
-                disabled={isPaid || isCancelled || payosPaymentMutation.isPending}
+                disabled={isConfirmed || isCancelled || payosPaymentMutation.isPending}
               >
-                {isPaid
-                  ? 'Đã thanh toán'
+                {isConfirmed
+                  ? '✅ Đã thanh toán'
                   : isCancelled
                     ? 'Đã hủy'
                     : payosPaymentMutation.isPending

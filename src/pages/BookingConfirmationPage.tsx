@@ -45,7 +45,7 @@ export const BookingConfirmationPage = () => {
   const isBookingSuccess = useRef(false);
   const { isLoggedIn } = useAuth();
   const sessionId = getSessionId();
-  const seatCodes = selectedSeats.map((s: Seat) => s.seatCode);
+  const seatCodes = selectedSeats?.map((s: Seat) => s.seatCode) ?? [];
   const isGuest = !isLoggedIn;
 
   const [formData, setFormData] = useState({
@@ -55,7 +55,7 @@ export const BookingConfirmationPage = () => {
     note: '',
   });
 
-  // --- 1. API MUTATIONS ---
+  // --- 1. API MUTATIONS (must be before any early returns) ---
 
   // Mutation to Unlock Seats (used when canceling/going back)
   const unlockMutation = useMutation({
@@ -84,11 +84,52 @@ export const BookingConfirmationPage = () => {
     },
   });
 
+  // Handle Browser Back Button / Tab Close (Cleanup)
+  // Use refs to access latest values without causing effect re-runs
+  const tripRef = useRef(trip);
+  const selectedSeatsRef = useRef(selectedSeats);
+
+  useEffect(() => {
+    tripRef.current = trip;
+    selectedSeatsRef.current = selectedSeats;
+  }, [trip, selectedSeats]);
+
+  useEffect(() => {
+    return () => {
+      // If component unmounts and booking was NOT successful, release the seats
+      const currentTrip = tripRef.current;
+      const currentSeats = selectedSeatsRef.current;
+      if (!isBookingSuccess.current && currentTrip && currentSeats?.length > 0) {
+        unlockSeats({
+          tripId: currentTrip.tripId,
+          seats: currentSeats.map((s: Seat) => s.seatCode),
+          sessionId: getSessionId(),
+        }).catch((err) => console.error('Auto-unlock failed', err));
+      }
+    };
+  }, []); // Empty deps - only run cleanup on actual unmount
+
+  // Early return if accessed without proper state (AFTER all hooks)
+  if (!trip || !selectedSeats || selectedSeats.length === 0) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Typography variant="h5" color="error" textAlign="center">
+          Không có thông tin đặt vé. Vui lòng quay lại trang tìm kiếm.
+        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Button variant="contained" onClick={() => navigate({ to: '/' })}>
+            Quay lại trang chủ
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
   // --- 2. HANDLERS ---
 
   // Handle explicit "Quay lại" (Back) button click
   const handleBack = () => {
-    if (trip && selectedSeats.length > 0) {
+    if (trip && selectedSeats && selectedSeats.length > 0) {
       // Unlock seats immediately
       unlockMutation.mutate({
         tripId: trip.tripId,
@@ -99,20 +140,6 @@ export const BookingConfirmationPage = () => {
     // Navigate back to the Trip List
     window.history.back();
   };
-
-  // Handle Browser Back Button / Tab Close (Cleanup)
-  useEffect(() => {
-    return () => {
-      // If component unmounts and booking was NOT successful, release the seats
-      if (!isBookingSuccess.current && trip && selectedSeats?.length > 0) {
-        unlockSeats({
-          tripId: trip.tripId,
-          seats: seatCodes,
-          sessionId: getSessionId(),
-        }).catch((err) => console.error('Auto-unlock failed', err));
-      }
-    };
-  }, [trip, selectedSeats, seatCodes]);
 
   const handleSubmit = () => {
     if (!formData.fullName || !formData.phone) {
@@ -290,7 +317,7 @@ export const BookingConfirmationPage = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography>Số ghế:</Typography>
               <Typography fontWeight="bold">
-                {selectedSeats.length} ({seatCodes.join(', ')})
+                {selectedSeats?.length ?? 0} ({seatCodes.join(', ')})
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>

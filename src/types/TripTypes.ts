@@ -143,6 +143,7 @@ export interface TicketHistoryItem {
   ticketId: string;
   ticketCode: string;
   trip: {
+    tripId: string;
     route: string;
     departureTime: string;
     operator: string;
