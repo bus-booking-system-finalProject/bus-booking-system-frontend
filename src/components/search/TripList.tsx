@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Box, Stack, Pagination } from '@mui/material';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
 import TripCard from './TripCard';
 import { getTripSeats } from '@/lib/api/trips';
 import type { Trip, Seat } from '@/types/TripTypes';
 import { useSeatTransaction } from '@/hooks/useSeatTransaction';
-import { socket } from '@/lib/utils/socket';
+import { useRealTimeSeats } from '@/hooks/useSocket';
 
 interface TripListProps {
   trips: Trip[];
@@ -18,7 +18,6 @@ interface TripListProps {
 
 const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChange }) => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   // --- 1. VIEW STATE ---
   // Booking: Only one ID allowed (Single Active)
@@ -26,28 +25,9 @@ const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChang
   // Details: Multiple IDs allowed
   const [openDetailsIds, setOpenDetailsIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (!bookingTripId) return;
-
-    socket.connect();
-
-    // Chỉ join room khi đã kết nối thành công
-    socket.on('connect', () => {
-      console.log('Socket connected, joining room:', bookingTripId);
-      socket.emit('join_trip', bookingTripId);
-    });
-
-    socket.on('seat_update', (data) => {
-      console.log('Real-time seat update:', data); // Kiểm tra xem log này có hiện không
-      queryClient.invalidateQueries({ queryKey: ['trip-seats', bookingTripId] });
-    });
-
-    return () => {
-      socket.off('seat_update');
-      socket.off('connect');
-      socket.disconnect();
-    };
-  }, [bookingTripId]);
+  // --- REAL-TIME SEAT UPDATES ---
+  // This hook manages socket connection and listens for seat updates
+  useRealTimeSeats(bookingTripId);
 
   // --- 2. BOOKING DATA STATE (Shared) ---
   const [activeTab, setActiveTab] = useState(0);
@@ -117,6 +97,7 @@ const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChang
   };
 
   const handleToggleBooking = (tripId: string) => {
+    console.log('Đang nhấn vào Trip ID:', tripId);
     // 1. If switching AWAY from another booking, unlock the old one
     if (bookingTripId && bookingTripId !== tripId) {
       unlock(bookingTripId, selectedSeats);
@@ -160,6 +141,7 @@ const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChang
         alert('Vui lòng chọn ít nhất 1 ghế');
         return;
       }
+
       lock(trip.tripId, selectedSeats);
     } else {
       // Step 2: Navigate to Confirmation

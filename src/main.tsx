@@ -10,6 +10,8 @@ import './styles.css';
 import reportWebVitals from './reportWebVitals.ts';
 import { routeTree } from './routeTree.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
+import { SocketProvider } from './context/SocketContext.tsx';
+import { NotificationToast } from './components/common/NotificationToast.tsx';
 import { useAuth } from './hooks/useAuth'; // Import useAuth hook
 
 const TanStackQueryProviderContext = getContext();
@@ -62,8 +64,12 @@ if (rootElement && !rootElement.innerHTML) {
         <CssBaseline />
         <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
           <AuthProvider>
-            {/* 4. Render the InnerApp instead of RouterProvider directly */}
-            <InnerApp />
+            <SocketProvider>
+              {/* Real-time notification toasts */}
+              <NotificationToast />
+              {/* 4. Render the InnerApp instead of RouterProvider directly */}
+              <InnerApp />
+            </SocketProvider>
           </AuthProvider>
         </TanStackQueryProvider.Provider>
       </ThemeProvider>

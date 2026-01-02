@@ -27,6 +27,8 @@ import { getMyTickets, cancelTicket } from '@/lib/api/trips';
 import { useNavigate } from '@tanstack/react-router';
 import { AxiosError } from 'axios';
 import { useAuth } from '@/hooks/useAuth';
+import { useTripStatusUpdates } from '@/hooks/useSocket';
+import type { TripStatusEvent } from '@/types/SocketTypes';
 
 interface ApiErrorResponse {
   success: boolean;
@@ -51,15 +53,38 @@ const TicketHistoryPage: React.FC = () => {
     enabled: !!accessToken,
   });
 
+  // --- REAL-TIME TRIP STATUS UPDATES ---
+  // Extract unique trip IDs from tickets (no memoization needed, React Compiler handles it)
+  const tripIds = data?.data
+    ? [...new Set(data.data.map((ticket) => ticket.trip.tripId).filter(Boolean))]
+    : [];
+
+  // Handle real-time trip status changes
+  const handleTripStatusChange = (event: TripStatusEvent) => {
+    console.log('[TicketHistoryPage] Trip status update:', event);
+    // Show notification based on status
+    if (event.status === 'CANCELLED') {
+      alert(`Your trip has been cancelled! ${event.message || ''}`);
+    } else if (event.status === 'DELAYED') {
+      alert(
+        `Your trip has been delayed by ${event.delayMinutes || ''} minutes. ${event.message || ''}`,
+      );
+    }
+    // Query will be auto-invalidated by the hook
+  };
+
+  // Subscribe to trip status updates
+  useTripStatusUpdates(tripIds, handleTripStatusChange);
+
   // Pass token to mutation
   const cancelMutation = useMutation({
     mutationFn: (ticketId: string) => cancelTicket(ticketId),
     onSuccess: () => {
-      alert('Hủy vé thành công!');
+      alert('Ticket cancellation successful!');
       queryClient.invalidateQueries({ queryKey: ['my-tickets'] });
     },
     onError: (error: AxiosError<ApiErrorResponse>) => {
-      const msg = error.response?.data?.message || 'Không thể hủy vé. Vui lòng thử lại.';
+      const msg = error.response?.data?.message || 'Unable to cancel the ticket. Please try again.';
       alert(msg);
     },
   });
