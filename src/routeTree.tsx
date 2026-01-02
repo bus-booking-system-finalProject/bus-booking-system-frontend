@@ -5,9 +5,7 @@ import { searchResultRoute } from './routes/searchResult.tsx';
 import { HomeRoute } from './routes/HomeRoute.tsx';
 import { adminRoute } from './routes/admin/AdminRoute.tsx';
 import { dashboardRoute } from './routes/admin/DashboardRoute.tsx';
-import { tripRoute } from './routes/admin/TripRoute.tsx';
 import { routeRoute } from './routes/admin/RouteRoute.tsx';
-import { operatorRoute } from './routes/admin/OperatorRoute.tsx';
 import { busRoute } from './routes/admin/BusRoute.tsx';
 import { bookingCheckoutRoute } from './routes/BookingCheckoutRoute.tsx';
 import { findTicketRoute } from './routes/FindTicketRoute.tsx';
@@ -19,6 +17,8 @@ import { userRoute } from './routes/admin/UserRoute';
 import { verifyEmailRoute } from './routes/VerifyEmailRoute.tsx';
 import { profileRoute } from './routes/ProfileRoute.tsx';
 import { resetPasswordRoute } from './routes/ResetPasswordRoute.tsx';
+import { busModelsRoute } from './routes/admin/BusModelRoute.tsx';
+import { stationsRoute } from './routes/admin/StationRoute.tsx';
 
 export const routeTree = rootRoute.addChildren([
   searchResultRoute,
@@ -36,11 +36,11 @@ export const routeTree = rootRoute.addChildren([
   ]),
   adminRoute.addChildren([
     dashboardRoute,
-    tripRoute,
     routeRoute,
-    operatorRoute,
     busRoute,
     analyticsRoute,
     userRoute,
+    busModelsRoute,
+    stationsRoute,
   ]),
 ]);

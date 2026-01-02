@@ -28,7 +28,8 @@ import { Add, Edit, Block, CheckCircle } from '@mui/icons-material';
 import { AxiosError } from 'axios';
 
 import { useUsers, useMutateUser } from '@/hooks/admin/useUsers';
-import { type User, Role, type CreateUserRequest, type UpdateUserRequest } from '@/types/UserTypes';
+import { type User, type CreateUserRequest, type UpdateUserRequest } from '@/types/UserTypes';
+import { UserRole } from '@/types/enum/UserRole';
 
 // Define the shape of your backend error response
 interface ApiErrorResponse {
@@ -56,7 +57,7 @@ const UsersPage: React.FC = () => {
     email: '',
     fullName: '',
     password: '',
-    role: Role.USER,
+    role: UserRole.USER,
   });
 
   // --- Helpers for Toast ---
@@ -71,7 +72,7 @@ const UsersPage: React.FC = () => {
   // --- Handlers ---
   const handleOpenCreate = () => {
     setEditingUser(null);
-    setFormData({ email: '', fullName: '', password: '', role: Role.USER });
+    setFormData({ email: '', fullName: '', password: '', role: UserRole.USER });
     setOpen(true);
   };
 
@@ -98,21 +99,21 @@ const UsersPage: React.FC = () => {
             role: formData.role,
           },
         });
-        showToast('Cập nhật thành công', 'success');
+        showToast('Update information successfully!', 'success');
       } else {
         // Create Mode
         if (!formData.email || !formData.password || !formData.fullName) {
-          showToast('Vui lòng điền đầy đủ thông tin', 'error');
+          showToast('Please enter all required information.', 'error');
           return;
         }
         await create.mutateAsync(formData as CreateUserRequest);
-        showToast('Tạo người dùng thành công', 'success');
+        showToast('Create a new user successfully!', 'success');
       }
       setOpen(false);
     } catch (err: unknown) {
       // Strictly typed error handling
       const error = err as AxiosError<ApiErrorResponse>;
-      const msg = error.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin';
+      const msg = error.response?.data?.message || 'An error has occurred when saving data.';
       showToast(msg, 'error');
     }
   };
@@ -120,11 +121,11 @@ const UsersPage: React.FC = () => {
   const handleToggleStatus = async (user: User) => {
     try {
       await toggleStatus.mutateAsync({ id: user.id, enabled: !user.enabled });
-      const msg = user.enabled ? 'Đã vô hiệu hóa tài khoản' : 'Đã kích hoạt tài khoản';
+      const msg = user.enabled ? 'Đã vô hiệu hóa tài khoản' : 'Account activated';
       showToast(msg, 'success');
     } catch (err: unknown) {
       const error = err as AxiosError<ApiErrorResponse>;
-      const msg = error.response?.data?.message || 'Lỗi khi thay đổi trạng thái';
+      const msg = error.response?.data?.message || 'Error updating status';
       showToast(msg, 'error');
     }
   };
@@ -135,10 +136,10 @@ const UsersPage: React.FC = () => {
     <Box sx={{ p: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={700}>
-          Quản lý người dùng
+          User Management
         </Typography>
         <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreate}>
-          Thêm mới
+          Add new
         </Button>
       </Stack>
 
@@ -153,8 +154,8 @@ const UsersPage: React.FC = () => {
               <TableCell>User</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Role</TableCell>
-              <TableCell>Trạng thái</TableCell>
-              <TableCell align="right">Hành động</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -167,7 +168,7 @@ const UsersPage: React.FC = () => {
                     </Avatar>
                     <Box>
                       <Typography variant="subtitle2" fontWeight={600}>
-                        {user.fullName || 'Chưa đặt tên'}
+                        {user.fullName || 'UNKNOWN'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         ID: {user.id}
@@ -179,7 +180,7 @@ const UsersPage: React.FC = () => {
                 <TableCell>
                   <Chip
                     label={user.role}
-                    color={user.role === Role.ADMIN ? 'primary' : 'default'}
+                    color={user.role === UserRole.ADMIN ? 'primary' : 'default'}
                     size="small"
                     variant="outlined"
                   />
@@ -212,7 +213,7 @@ const UsersPage: React.FC = () => {
 
       {/* CREATE / EDIT DIALOG */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingUser ? 'Cập nhật người dùng' : 'Tạo người dùng mới'}</DialogTitle>
+        <DialogTitle>{editingUser ? 'Update user' : 'Create a new user'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
@@ -222,7 +223,7 @@ const UsersPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
             <TextField
-              label="Họ và tên"
+              label="Name"
               fullWidth
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -230,7 +231,7 @@ const UsersPage: React.FC = () => {
             {/* Show password field only on Create */}
             {!editingUser && (
               <TextField
-                label="Mật khẩu"
+                label="Password"
                 type="password"
                 fullWidth
                 value={formData.password}
@@ -239,13 +240,15 @@ const UsersPage: React.FC = () => {
             )}
             <TextField
               select
-              label="Vai trò"
+              label="Roles"
               fullWidth
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
             >
-              <MenuItem value={Role.USER}>User</MenuItem>
-              <MenuItem value={Role.ADMIN}>Admin</MenuItem>
+              <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+              <MenuItem value={UserRole.OPERATOR}>Operator</MenuItem>
+              <MenuItem value={UserRole.STAFF}>Staff</MenuItem>
+              <MenuItem value={UserRole.USER}>User</MenuItem>
             </TextField>
           </Stack>
         </DialogContent>
@@ -256,7 +259,11 @@ const UsersPage: React.FC = () => {
             onClick={handleSubmit}
             disabled={create.isPending || update.isPending}
           >
-            {create.isPending || update.isPending ? 'Đang xử lý...' : editingUser ? 'Lưu' : 'Tạo'}
+            {create.isPending || update.isPending
+              ? 'Processing...'
+              : editingUser
+                ? 'Save'
+                : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

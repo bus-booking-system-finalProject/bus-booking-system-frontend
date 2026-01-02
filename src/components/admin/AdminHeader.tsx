@@ -1,34 +1,35 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import {
   AppBar,
   Toolbar,
   Typography,
   Box,
-  Container,
-  Button,
-  Chip,
   IconButton,
   Tooltip,
+  Avatar,
   useTheme,
   useMediaQuery,
-  Stack,
-  alpha,
 } from '@mui/material';
-import { ShieldCheck, LogOut, Home, Menu } from 'lucide-react';
+import { LogOut, Home, Menu } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuth } from '@/hooks/useAuth';
-import { ADMIN_TABS } from '@/config/AdminTabs';
+import { AdminLayoutContext } from '@/context/AdminLayoutContext';
 
 interface AdminHeaderProps {
-  activeTab: number;
-  onTabChange: (event: React.SyntheticEvent, newValue: number) => void;
+  drawerWidth: number;
 }
 
-export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => {
-  const { logout, user } = useAuth();
+export const AdminHeader: React.FC<AdminHeaderProps> = ({ drawerWidth }) => {
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // FIX: Handle potential undefined context
+  const context = useContext(AdminLayoutContext);
+
+  // Fallback if context is missing (though in your layout it shouldn't be)
+  const pageTitle = context?.pageTitle || 'Admin Portal';
 
   const handleLogout = () => {
     logout();
@@ -37,177 +38,52 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
 
   return (
     <AppBar
-      position="sticky"
+      position="fixed"
       elevation={0}
       sx={{
+        width: { sm: `calc(100% - ${drawerWidth}px)` },
+        ml: { sm: `${drawerWidth}px` },
         bgcolor: 'background.paper',
         borderBottom: '1px solid',
         borderColor: 'divider',
         color: 'text.primary',
       }}
     >
-      <Container maxWidth="xl">
-        <Toolbar disableGutters sx={{ minHeight: { xs: 64, md: 72 } }}>
-          {/* 1. Branding Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', mr: 4 }}>
-            <Box
-              sx={{
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                p: 0.75,
-                borderRadius: 1.5,
-                display: 'flex',
-                mr: 1.5,
-              }}
-            >
-              <ShieldCheck size={24} />
-            </Box>
-            <Box>
-              <Typography
-                variant="h6"
-                noWrap
-                sx={{
-                  fontWeight: 800,
-                  lineHeight: 1.2,
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                Admin Portal
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                Bus Booking System
-              </Typography>
-            </Box>
+      <Toolbar>
+        {/* 1. Page Title (Dynamic) */}
+        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
+          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
+            {pageTitle}
+          </Typography>
+        </Box>
+
+        {/* 2. User Actions */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title="Go to Home">
+            <IconButton onClick={() => navigate({ to: '/' })} color="inherit">
+              <Home size={20} />
+            </IconButton>
+          </Tooltip>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 1 }}>
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.875rem' }}>
+              A
+            </Avatar>
           </Box>
 
-          {/* 2. Navigation Buttons (Desktop) */}
-          {!isMobile && (
-            <Stack direction="row" spacing={1} sx={{ flexGrow: 1 }}>
-              {ADMIN_TABS.map((tab, index) => {
-                const isActive = activeTab === index;
-                const IconComponent = tab.icon;
+          <Tooltip title="Logout">
+            <IconButton onClick={handleLogout} color="error" sx={{ ml: 1 }}>
+              <LogOut size={20} />
+            </IconButton>
+          </Tooltip>
 
-                return (
-                  <Button
-                    key={tab.path}
-                    onClick={(event) => onTabChange(event, index)}
-                    startIcon={<IconComponent size={18} />}
-                    variant={isActive ? 'contained' : 'text'}
-                    disableElevation
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: isActive ? 700 : 500,
-                      borderRadius: 2,
-                      px: 2,
-                      ...(isActive
-                        ? {
-                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                            color: 'primary.main',
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.primary.main, 0.2),
-                            },
-                          }
-                        : {
-                            color: 'text.secondary',
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.text.primary, 0.05),
-                              color: 'text.primary',
-                            },
-                          }),
-                    }}
-                  >
-                    {tab.label}
-                  </Button>
-                );
-              })}
-            </Stack>
+          {isMobile && (
+            <IconButton color="inherit" edge="end" sx={{ ml: 1 }}>
+              <Menu size={24} />
+            </IconButton>
           )}
-
-          {/* 3. User Actions */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
-            {!isMobile && user && (
-              <Chip
-                label={`Admin: ${user.email}`}
-                size="small"
-                color="secondary"
-                variant="outlined"
-                sx={{ mr: 1, fontWeight: 500 }}
-              />
-            )}
-
-            <Tooltip title="Go to Home">
-              <IconButton onClick={() => navigate({ to: '/' })} color="inherit">
-                <Home size={20} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip title="Logout">
-              <Button
-                variant="outlined"
-                color="error"
-                size="small"
-                startIcon={<LogOut size={16} />}
-                onClick={handleLogout}
-                sx={{
-                  ml: 1,
-                  display: { xs: 'none', sm: 'flex' },
-                  borderColor: 'error.light',
-                  color: 'error.main',
-                  '&:hover': {
-                    bgcolor: 'error.lighter',
-                    borderColor: 'error.main',
-                  },
-                }}
-              >
-                Logout
-              </Button>
-            </Tooltip>
-
-            {isMobile && (
-              <IconButton color="inherit" edge="end" sx={{ ml: 1 }}>
-                <Menu size={24} />
-              </IconButton>
-            )}
-          </Box>
-        </Toolbar>
-
-        {/* 4. Mobile Navigation (Scrollable Horizontal List) */}
-        {isMobile && (
-          <Box
-            sx={{
-              display: 'flex',
-              overflowX: 'auto',
-              gap: 1,
-              pb: 2,
-              // Hide scrollbar
-              '::-webkit-scrollbar': { display: 'none' },
-              msOverflowStyle: 'none',
-              scrollbarWidth: 'none',
-            }}
-          >
-            {ADMIN_TABS.map((tab, index) => {
-              const isActive = activeTab === index;
-              const IconComponent = tab.icon;
-
-              return (
-                <Chip
-                  key={tab.path}
-                  icon={<IconComponent size={16} />}
-                  label={tab.label}
-                  onClick={(event) => onTabChange(event, index)}
-                  color={isActive ? 'primary' : 'default'}
-                  variant={isActive ? 'filled' : 'outlined'}
-                  sx={{
-                    fontWeight: isActive ? 600 : 400,
-                    border: isActive ? 'none' : '1px solid',
-                    borderColor: 'divider',
-                  }}
-                />
-              );
-            })}
-          </Box>
-        )}
-      </Container>
+        </Box>
+      </Toolbar>
     </AppBar>
   );
 };

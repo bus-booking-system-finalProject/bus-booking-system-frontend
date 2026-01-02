@@ -25,6 +25,7 @@ import { loginUser, registerUser, forgotPassword } from '@/lib/api/AuthApi';
 import type { UserProfile } from '@/types/auth';
 import { getAPIUrl } from '@/config/api';
 import { useNavigate } from '@tanstack/react-router';
+import { UserRole } from '@/types/enum/UserRole';
 // --------------------------------------------------------------------------
 
 // --- LOGIN FORM COMPONENT ---
@@ -101,7 +102,7 @@ function LoginForm({
     onSuccess: (data: { accessToken: string; user: UserProfile }) => {
       auth.login(data.user, data.accessToken);
       onLoginSuccess('Đăng nhập thành công!');
-      if (data.user.role === 'ADMIN') {
+      if (data.user.role === UserRole.OPERATOR) {
         setTimeout(() => navigate({ to: '/admin' }), 1500);
       }
     },

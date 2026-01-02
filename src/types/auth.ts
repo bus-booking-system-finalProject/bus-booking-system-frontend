@@ -1,9 +1,9 @@
-export type UserRole = 'USER' | 'ADMIN';
+export type UserRole = 'USER' | 'ADMIN' | 'OPERATOR' | 'STAFF';
 
 export interface UserProfile {
   id: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  role: UserRole;
   createdAt: string;
   fullName?: string;
   phoneNumber?: string;

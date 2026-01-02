@@ -26,10 +26,11 @@ import AuthModal from './AuthModal';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useAuth } from '@/hooks/useAuth';
 import { NAV_ITEMS, type NavItem } from '@/config/HeaderNav';
+import { UserRole } from '@/types/enum/UserRole';
 
 function Header() {
   const { isLoggedIn, user, logout } = useAuth();
-  const isAdmin = isLoggedIn && user?.role === 'ADMIN';
+  const isAdmin = isLoggedIn && user?.role === UserRole.OPERATOR;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -267,7 +268,9 @@ function Header() {
 
           {/* 5. AUTH */}
           <Box sx={{ flexGrow: 0 }}>
-            {isLoggedIn && user ? (
+            {isLoggedIn && isAdmin ? (
+              <></>
+            ) : user ? (
               <>
                 <Tooltip title="Tài khoản">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>

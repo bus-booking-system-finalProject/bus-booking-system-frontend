@@ -1,11 +1,12 @@
 import {
   LayoutDashboard,
   Bus,
-  Building2,
   Map,
   CalendarClock,
   BarChart3,
   UsersIcon,
+  MapPin,
+  Settings2,
 } from 'lucide-react';
 
 export interface AdminTabItem {
@@ -21,9 +22,14 @@ export const ADMIN_TABS: AdminTabItem[] = [
     path: '/admin',
   },
   {
-    label: 'Operators',
-    icon: Building2,
-    path: '/admin/operators',
+    label: 'Stations',
+    icon: MapPin,
+    path: '/admin/stations',
+  },
+  {
+    label: 'Bus Models',
+    icon: Settings2,
+    path: '/admin/bus-models',
   },
   {
     label: 'Buses',
@@ -41,12 +47,12 @@ export const ADMIN_TABS: AdminTabItem[] = [
     path: '/admin/trips',
   },
   {
-    label: 'Analytics', // <--- New Tab
+    label: 'Analytics',
     path: '/admin/analytics',
     icon: BarChart3,
   },
   {
-    label: 'Users', // --- NEW TAB ---
+    label: 'Users',
     path: '/admin/users',
     icon: UsersIcon,
   },

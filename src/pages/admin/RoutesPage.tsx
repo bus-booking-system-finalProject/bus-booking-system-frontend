@@ -2,229 +2,439 @@ import React, { useState } from 'react';
 import {
   Box,
   Button,
+  Card,
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
+  DialogTitle,
   IconButton,
-  Stack,
-  Typography,
   TextField,
-  CircularProgress,
+  Typography,
+  Stack,
+  Grid,
+  Chip,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
   MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
 } from '@mui/material';
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
-import { Add, Edit, Delete, Map } from '@mui/icons-material';
-import { useRoutes, useMutateRoute } from '@/hooks/admin/useRoutes';
-import { useOperators } from '@/hooks/admin/useOperators';
-import type { Route } from '@/types/AdminTypes';
-
-// Define Write DTO specifically for the form
-type RouteFormData = {
-  origin: string;
-  destination: string;
-  distanceKm: number;
-  estimatedMinutes: number;
-  operatorId: string;
-};
-
-const INITIAL_FORM_STATE: RouteFormData = {
-  origin: '',
-  destination: '',
-  distanceKm: 0,
-  estimatedMinutes: 0,
-  operatorId: '',
-};
+import { Plus, Edit, Trash2, Map, ArrowRight, Clock } from 'lucide-react';
+import { useRoutes } from '@/hooks/admin/useRoutes';
+import { useStations } from '@/hooks/admin/useStations'; // Reuse previous hook
+import type { RouteRequest, RouteStopRequest } from '@/types/admin/RouteTypes';
 
 export default function RoutesPage() {
+  const { routesQuery, createRoute, updateRoute, deleteRoute } = useRoutes();
+  const { stationsQuery } = useStations();
+
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Use the Write DTO type for form state
-  const [formData, setFormData] = useState<RouteFormData>(INITIAL_FORM_STATE);
+  // Form State
+  const [formData, setFormData] = useState<RouteRequest>({
+    name: '',
+    origin: '',
+    destination: '',
+    distanceKm: 0,
+    estimatedMinutes: 0,
+    isActive: true,
+    pickupStops: [],
+    dropoffStops: [],
+  });
 
-  const { data: routes = [], isLoading } = useRoutes();
-  const { data: operators = [] } = useOperators();
-  const { create, update, delete: remove } = useMutateRoute();
+  // Temporary Stop State for adding to list
+  const [newStop, setNewStop] = useState<{
+    type: 'PICKUP' | 'DROPOFF';
+    stationId: string;
+    duration: number;
+  }>({
+    type: 'PICKUP',
+    stationId: '',
+    duration: 0,
+  });
 
-  const handleOpen = (route?: Route) => {
+  const handleOpen = (route?: any) => {
     if (route) {
       setEditingId(route.id);
-      // Map Read DTO (nested object) to Write DTO (flat ID)
+      // Map response to request structure if needed, simplified here:
       setFormData({
-        origin: route.origin,
-        destination: route.destination,
-        distanceKm: route.distanceKm,
-        estimatedMinutes: route.estimatedMinutes,
-        operatorId: route.operator?.id || '',
+        name: route.details.name,
+        origin: route.details.origin,
+        destination: route.details.destination,
+        distanceKm: route.details.distanceKm,
+        estimatedMinutes: route.details.estimatedMinutes,
+        isActive: route.isActive,
+        pickupStops: route.pickup_points.map((p: any) => ({ ...p, stationId: p.id })),
+        dropoffStops: route.dropoff_points.map((p: any) => ({ ...p, stationId: p.id })),
       });
     } else {
       setEditingId(null);
-      setFormData(INITIAL_FORM_STATE);
+      setFormData({
+        name: '',
+        origin: '',
+        destination: '',
+        distanceKm: 0,
+        estimatedMinutes: 0,
+        isActive: true,
+        pickupStops: [],
+        dropoffStops: [],
+      });
     }
     setOpen(true);
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    setFormData(INITIAL_FORM_STATE);
-    setEditingId(null);
+  const addStop = () => {
+    if (!newStop.stationId) return;
+
+    const stopReq: RouteStopRequest = {
+      stationId: newStop.stationId,
+      duration: Number(newStop.duration),
+      isOrigin: false, // You might want logic to set first pickup as origin
+      isDestination: false,
+    };
+
+    if (newStop.type === 'PICKUP') {
+      setFormData((prev) => ({ ...prev, pickupStops: [...prev.pickupStops, stopReq] }));
+    } else {
+      setFormData((prev) => ({ ...prev, dropoffStops: [...prev.dropoffStops, stopReq] }));
+    }
+
+    // Reset selection but keep type for ease of use
+    setNewStop((prev) => ({ ...prev, stationId: '', duration: 0 }));
+  };
+
+  const removeStop = (type: 'PICKUP' | 'DROPOFF', index: number) => {
+    if (type === 'PICKUP') {
+      setFormData((prev) => ({
+        ...prev,
+        pickupStops: prev.pickupStops.filter((_, i) => i !== index),
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        dropoffStops: prev.dropoffStops.filter((_, i) => i !== index),
+      }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.operatorId) {
-      alert('Please select an operator');
-      return;
-    }
-
-    // Ensure numeric values are numbers
-    const payload = {
-      ...formData,
-      distanceKm: Number(formData.distanceKm),
-      estimatedMinutes: Number(formData.estimatedMinutes),
-    };
-
     if (editingId) {
-      update.mutate({ id: editingId, data: payload }, { onSuccess: handleClose });
+      updateRoute.mutate({ id: editingId, data: formData });
     } else {
-      // @ts-expect-error: See above
-      create.mutate(payload, { onSuccess: handleClose });
+      createRoute.mutate(formData);
     }
+    setOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Delete this route?')) remove.mutate(id);
-  };
-
-  const columns: GridColDef<Route>[] = [
+  const columns: GridColDef[] = [
     {
-      field: 'operator',
-      headerName: 'Operator',
-      width: 150,
-      // Safely access the nested operator object for display
-      valueGetter: (_, row) => row.operator?.name || 'N/A',
+      field: 'name',
+      headerName: 'Route Name',
+      flex: 1.5,
+      valueGetter: (params) => params.row.details?.name,
     },
-    { field: 'origin', headerName: 'Origin', width: 150 },
-    { field: 'destination', headerName: 'Destination', width: 150 },
-    { field: 'distanceKm', headerName: 'Distance (km)', type: 'number', width: 120 },
-    { field: 'estimatedMinutes', headerName: 'Duration (min)', type: 'number', width: 120 },
+    {
+      field: 'path',
+      headerName: 'Path',
+      flex: 2,
+      renderCell: (params) => (
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography variant="body2">{params.row.details?.origin}</Typography>
+          <ArrowRight size={14} color="#666" />
+          <Typography variant="body2">{params.row.details?.destination}</Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: 'distance',
+      headerName: 'Distance',
+      width: 100,
+      valueGetter: (params) => `${params.row.details?.distanceKm} km`,
+    },
+    {
+      field: 'time',
+      headerName: 'Est. Time',
+      width: 120,
+      valueGetter: (params) =>
+        `${Math.floor(params.row.details?.estimatedMinutes / 60)}h ${params.row.details?.estimatedMinutes % 60}m`,
+    },
+    {
+      field: 'isActive',
+      headerName: 'Status',
+      width: 100,
+      renderCell: (params) => (
+        <Chip
+          label={params.row.isActive ? 'Active' : 'Inactive'}
+          color={params.row.isActive ? 'success' : 'default'}
+          size="small"
+        />
+      ),
+    },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 120,
-      sortable: false,
-      filterable: false,
+      width: 100,
       renderCell: (params) => (
-        <Stack direction="row">
-          <IconButton size="small" onClick={() => handleOpen(params.row)}>
-            <Edit fontSize="small" />
+        <Stack direction="row" spacing={1}>
+          <IconButton size="small" onClick={() => handleOpen(params.row)} color="primary">
+            <Edit size={18} />
           </IconButton>
-          <IconButton size="small" color="error" onClick={() => handleDelete(params.row.id)}>
-            <Delete fontSize="small" />
+          <IconButton size="small" onClick={() => deleteRoute.mutate(params.row.id)} color="error">
+            <Trash2 size={18} />
           </IconButton>
         </Stack>
       ),
     },
   ];
 
-  if (isLoading) return <CircularProgress sx={{ m: 4 }} />;
-
   return (
-    <Box sx={{ height: '100%', width: '100%', p: 2 }}>
+    <Box sx={{ height: '100%', width: '100%' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography
-          variant="h5"
-          sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}
+        <Box>
+          <Typography variant="h5" fontWeight={600}>
+            Route Network
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Configure paths, distances, and stop points
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Plus size={20} />}
+          onClick={() => handleOpen()}
+          sx={{ borderRadius: 2 }}
         >
-          <Map /> Route Management
-        </Typography>
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
-          Add Route
+          Create Route
         </Button>
       </Stack>
 
-      <DataGrid
-        rows={routes}
-        columns={columns}
-        autoHeight
-        sx={{ bgcolor: 'white' }}
-        getRowId={(row) => row.id}
-      />
+      <Card sx={{ height: 600, width: '100%', boxShadow: 1, borderRadius: 3 }}>
+        <DataGrid
+          rows={routesQuery.data || []}
+          columns={columns}
+          loading={routesQuery.isLoading}
+          disableRowSelectionOnClick
+          sx={{ border: 'none' }}
+        />
+      </Card>
 
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <form onSubmit={handleSubmit}>
-          <DialogTitle>{editingId ? 'Edit Route' : 'Create New Route'}</DialogTitle>
-          <DialogContent dividers>
-            <Stack spacing={2}>
-              {/* Operator Selection */}
-              <FormControl fullWidth>
-                <InputLabel>Operator</InputLabel>
-                <Select
-                  value={formData.operatorId}
-                  label="Operator"
-                  onChange={(e) => setFormData({ ...formData, operatorId: e.target.value })}
-                  required
-                >
-                  {operators.map((op) => (
-                    <MenuItem key={op.id} value={op.id}>
-                      {op.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Map size={20} /> {editingId ? 'Edit Route' : 'Create Route'}
+        </DialogTitle>
+        <DialogContent>
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+            <Grid container spacing={3}>
+              {/* Basic Information */}
+              <Grid item xs={12} md={4} sx={{ borderRight: '1px solid #eee' }}>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                  Basic Info
+                </Typography>
+                <Stack spacing={2}>
+                  <TextField
+                    label="Route Name"
+                    fullWidth
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                  <TextField
+                    label="Origin City"
+                    fullWidth
+                    required
+                    value={formData.origin}
+                    onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
+                  />
+                  <TextField
+                    label="Destination City"
+                    fullWidth
+                    required
+                    value={formData.destination}
+                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+                  />
+                  <Stack direction="row" spacing={2}>
+                    <TextField
+                      label="Distance (km)"
+                      type="number"
+                      fullWidth
+                      required
+                      value={formData.distanceKm}
+                      onChange={(e) =>
+                        setFormData({ ...formData, distanceKm: Number(e.target.value) })
+                      }
+                    />
+                    <TextField
+                      label="Est. Minutes"
+                      type="number"
+                      fullWidth
+                      required
+                      value={formData.estimatedMinutes}
+                      onChange={(e) =>
+                        setFormData({ ...formData, estimatedMinutes: Number(e.target.value) })
+                      }
+                    />
+                  </Stack>
+                </Stack>
+              </Grid>
 
-              <Stack direction="row" spacing={2}>
-                <TextField
-                  label="Origin"
-                  fullWidth
-                  required
-                  value={formData.origin}
-                  onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
-                />
-                <TextField
-                  label="Destination"
-                  fullWidth
-                  required
-                  value={formData.destination}
-                  onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                />
-              </Stack>
-              <Stack direction="row" spacing={2}>
-                <TextField
-                  label="Distance (km)"
-                  type="number"
-                  fullWidth
-                  required
-                  value={formData.distanceKm}
-                  onChange={(e) => setFormData({ ...formData, distanceKm: +e.target.value })}
-                />
-                <TextField
-                  label="Duration (minutes)"
-                  type="number"
-                  fullWidth
-                  required
-                  value={formData.estimatedMinutes}
-                  onChange={(e) => setFormData({ ...formData, estimatedMinutes: +e.target.value })}
-                />
-              </Stack>
+              {/* Stops Configuration */}
+              <Grid item xs={12} md={8}>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                  Stop Configuration
+                </Typography>
+
+                {/* Add Stop Widget */}
+                <Card variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#f8fafc' }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <TextField
+                      select
+                      label="Stop Type"
+                      size="small"
+                      sx={{ width: 150 }}
+                      value={newStop.type}
+                      onChange={(e) => setNewStop({ ...newStop, type: e.target.value as any })}
+                    >
+                      <MenuItem value="PICKUP">Pick-up</MenuItem>
+                      <MenuItem value="DROPOFF">Drop-off</MenuItem>
+                    </TextField>
+                    <TextField
+                      select
+                      label="Station"
+                      size="small"
+                      fullWidth
+                      value={newStop.stationId}
+                      onChange={(e) => setNewStop({ ...newStop, stationId: e.target.value })}
+                    >
+                      {stationsQuery.data?.map((s) => (
+                        <MenuItem key={s.id} value={s.id}>
+                          {s.name} ({s.city})
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <TextField
+                      label="Offset (min)"
+                      type="number"
+                      size="small"
+                      sx={{ width: 120 }}
+                      value={newStop.duration}
+                      onChange={(e) => setNewStop({ ...newStop, duration: Number(e.target.value) })}
+                    />
+                    <Button variant="contained" onClick={addStop} sx={{ minWidth: 100 }}>
+                      Add
+                    </Button>
+                  </Stack>
+                </Card>
+
+                <Grid container spacing={2}>
+                  {/* Pick-up List */}
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      PICKUP POINTS ({formData.pickupStops.length})
+                    </Typography>
+                    <List
+                      dense
+                      sx={{
+                        bgcolor: '#f1f5f9',
+                        borderRadius: 2,
+                        mt: 1,
+                        maxHeight: 300,
+                        overflow: 'auto',
+                      }}
+                    >
+                      {formData.pickupStops.map((stop, index) => (
+                        <ListItem key={index}>
+                          <ListItemText
+                            primary={
+                              stationsQuery.data?.find((s) => s.id === stop.stationId)?.name ||
+                              'Unknown Station'
+                            }
+                            secondary={`+${stop.duration} mins from start`}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              onClick={() => removeStop('PICKUP', index)}
+                            >
+                              <Trash2 size={16} />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))}
+                      {formData.pickupStops.length === 0 && (
+                        <Typography
+                          variant="caption"
+                          sx={{ p: 2, display: 'block', color: 'text.disabled' }}
+                        >
+                          No pickup points added
+                        </Typography>
+                      )}
+                    </List>
+                  </Grid>
+
+                  {/* Drop-off List */}
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      DROPOFF POINTS ({formData.dropoffStops.length})
+                    </Typography>
+                    <List
+                      dense
+                      sx={{
+                        bgcolor: '#f1f5f9',
+                        borderRadius: 2,
+                        mt: 1,
+                        maxHeight: 300,
+                        overflow: 'auto',
+                      }}
+                    >
+                      {formData.dropoffStops.map((stop, index) => (
+                        <ListItem key={index}>
+                          <ListItemText
+                            primary={
+                              stationsQuery.data?.find((s) => s.id === stop.stationId)?.name ||
+                              'Unknown Station'
+                            }
+                            secondary={`+${stop.duration} mins from start`}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              onClick={() => removeStop('DROPOFF', index)}
+                            >
+                              <Trash2 size={16} />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))}
+                      {formData.dropoffStops.length === 0 && (
+                        <Typography
+                          variant="caption"
+                          sx={{ p: 2, display: 'block', color: 'text.disabled' }}
+                        >
+                          No dropoff points added
+                        </Typography>
+                      )}
+                    </List>
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 3 }} />
+            <Stack direction="row" justifyContent="flex-end" spacing={2}>
+              <Button onClick={() => setOpen(false)} color="inherit">
+                Cancel
+              </Button>
+              <Button type="submit" variant="contained" size="large">
+                Save Route
+              </Button>
             </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={create.isPending || update.isPending}
-            >
-              {editingId ? 'Update' : 'Create'}
-            </Button>
-          </DialogActions>
-        </form>
+          </Box>
+        </DialogContent>
       </Dialog>
     </Box>
   );

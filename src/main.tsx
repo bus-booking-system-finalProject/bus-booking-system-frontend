@@ -11,6 +11,7 @@ import reportWebVitals from './reportWebVitals.ts';
 import { routeTree } from './routeTree.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { useAuth } from './hooks/useAuth'; // Import useAuth hook
+import { ToastProvider } from './context/ToastContext.tsx';
 
 const TanStackQueryProviderContext = getContext();
 
@@ -34,7 +35,7 @@ declare module '@tanstack/react-router' {
 }
 
 // 2. Create an Inner App Component to Bridge Auth -> Router
-function InnerApp() {
+export function InnerApp() {
   const auth = useAuth(); // Get current auth state
 
   return (
@@ -62,8 +63,9 @@ if (rootElement && !rootElement.innerHTML) {
         <CssBaseline />
         <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
           <AuthProvider>
-            {/* 4. Render the InnerApp instead of RouterProvider directly */}
-            <InnerApp />
+            <ToastProvider>
+              <InnerApp />
+            </ToastProvider>
           </AuthProvider>
         </TanStackQueryProvider.Provider>
       </ThemeProvider>

@@ -1,50 +1,52 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BusesApi } from '@/lib/api/admin/BusesApi';
-import type { Bus, SeatDefinition } from '@/types/AdminTypes';
-
-export const busKeys = {
-  all: ['buses'] as const,
-  detail: (id: string) => [...busKeys.all, id] as const,
-};
+import type { BusRequest } from '@/types/admin/BusTypes';
+import { useToast } from '../useToast';
+import type { ApiErrorResponse } from '@/types/CommonTypes';
 
 export const useBuses = () => {
-  return useQuery({
-    queryKey: busKeys.all,
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
+  const busesQuery = useQuery({
+    queryKey: ['buses'],
     queryFn: BusesApi.getAll,
   });
-};
 
-export const useBus = (id: string) => {
-  return useQuery({
-    queryKey: busKeys.detail(id),
-    queryFn: () => BusesApi.getById(id),
-    enabled: !!id,
+  const createBus = useMutation({
+    mutationFn: BusesApi.create,
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['buses'] });
+      // Use the message from the backend response
+      showToast(response.message || 'Bus created successfully', 'success');
+    },
+    onError: (error: ApiErrorResponse) => {
+      showToast(error?.message || 'Failed to create bus', 'error');
+    },
   });
-};
 
-export const useMutateBus = () => {
-  const queryClient = useQueryClient();
+  const updateBus = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: BusRequest }) =>
+      BusesApi.update(id, data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['buses'] });
+      showToast(response.message || 'Bus updated successfully', 'success');
+    },
+    onError: (error: ApiErrorResponse) => {
+      showToast(error?.message || 'Failed to update bus', 'error');
+    },
+  });
 
-  return {
-    create: useMutation({
-      mutationFn: BusesApi.create,
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: busKeys.all }),
-    }),
-    update: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: Partial<Bus> }) => BusesApi.update(id, data),
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: busKeys.all }),
-    }),
-    delete: useMutation({
-      mutationFn: BusesApi.delete,
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: busKeys.all }),
-    }),
-    saveSeatMap: useMutation({
-      mutationFn: ({ busId, seats }: { busId: string; seats: SeatDefinition[] }) =>
-        BusesApi.saveSeatMap(busId, seats),
-      onSuccess: (_, variables) => {
-        // Invalidate specific bus to refresh data
-        queryClient.invalidateQueries({ queryKey: busKeys.detail(variables.busId) });
-      },
-    }),
-  };
+  const deleteBus = useMutation({
+    mutationFn: BusesApi.delete,
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['buses'] });
+      showToast(response.message || 'Bus deleted successfully', 'success');
+    },
+    onError: (error: ApiErrorResponse) => {
+      showToast(error?.message || 'Failed to delete bus', 'error');
+    },
+  });
+
+  return { busesQuery, createBus, updateBus, deleteBus };
 };

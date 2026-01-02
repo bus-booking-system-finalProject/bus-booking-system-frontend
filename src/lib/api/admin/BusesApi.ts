@@ -1,30 +1,22 @@
-// src/lib/api/BusesApi.ts
 import { apiPrivate } from '@/lib/api/axios';
-import type { Bus, SeatDefinition, ApiResponse } from '@/types/AdminTypes';
+import type { BusRequest, BusResponse } from '@/types/admin/BusTypes';
+import type { ApiResponse } from '@/types/CommonTypes';
 
 export const BusesApi = {
   getAll: async () => {
-    const res = await apiPrivate.get<ApiResponse<Bus[]>>('/booking/buses');
-    return res.data.data;
+    const { data } = await apiPrivate.get<ApiResponse<BusResponse[]>>('/admin/buses');
+    return data.data;
   },
-  getById: async (id: string) => {
-    const res = await apiPrivate.get<ApiResponse<Bus>>(`/booking/buses/${id}`);
-    return res.data.data;
+  create: async (bus: BusRequest) => {
+    const { data } = await apiPrivate.post<ApiResponse<BusResponse>>('/admin/buses', bus);
+    return data;
   },
-  create: async (data: Omit<Bus, 'id'>) => {
-    const res = await apiPrivate.post<ApiResponse<Bus>>('/booking/buses', data);
-    return res.data.data;
-  },
-  update: async (id: string, data: Partial<Bus>) => {
-    const res = await apiPrivate.put<ApiResponse<Bus>>(`/booking/buses/${id}`, data);
-    return res.data.data;
+  update: async (id: string, bus: BusRequest) => {
+    const { data } = await apiPrivate.put<ApiResponse<BusResponse>>(`/admin/buses/${id}`, bus);
+    return data;
   },
   delete: async (id: string) => {
-    await apiPrivate.delete<ApiResponse<null>>(`/booking/buses/${id}`);
-  },
-  // Custom endpoint
-  saveSeatMap: async (busId: string, seatDefinitions: SeatDefinition[]) => {
-    const res = await apiPrivate.post(`/booking/buses/${busId}/seats/custom`, seatDefinitions);
-    return res.data.data;
+    const { data } = await apiPrivate.delete<ApiResponse<null>>(`/admin/buses/${id}`);
+    return data;
   },
 };

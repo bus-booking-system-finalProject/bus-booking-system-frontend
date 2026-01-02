@@ -1,7 +1,4 @@
-export enum Role {
-  USER = 'USER',
-  ADMIN = 'ADMIN',
-}
+import { UserRole } from "./enum/UserRole";
 
 export interface User {
   id: number;
@@ -9,7 +6,7 @@ export interface User {
   fullName?: string;
   phoneNumber?: string;
   avatarUrl?: string;
-  role: Role;
+  role: UserRole;
   createdAt: string;
   enabled: boolean;
 }
@@ -18,14 +15,14 @@ export interface CreateUserRequest {
   email: string;
   password?: string; // Optional if you auto-generate
   fullName: string;
-  role: Role;
+  role: UserRole;
 }
 
 export interface UpdateUserRequest {
   fullName?: string;
   email?: string; // Admin can change email
   phoneNumber?: string;
-  role?: Role;
+  role?: UserRole;
   avatarUrl?: string;
 }
 
