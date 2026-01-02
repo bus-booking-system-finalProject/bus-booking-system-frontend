@@ -116,25 +116,34 @@ export interface TripSearchRequest {
 export interface TripResponse {
   tripId: string; // Backend DTO uses 'tripId'
   route: {
-    origin: string;
-    destination: string;
+    name: string;
     durationMinutes: number;
+    pickup_points?: Array<{ stopId: string; name: string; address: string }>;
+    dropoff_points?: Array<{ stopId: string; name: string; address: string }>;
   };
   operator: {
+    id: string;
     name: string;
+    image?: string;
+    ratings?: { overall: number; reviews: number };
   };
   bus: {
     model: string;
     type: string;
   };
-  schedule: {
+  schedules: {
+    hour: string;
+    minute: string;
     departureTime: string;
     arrivalTime: string;
   };
   pricing: {
-    basePrice: number;
-    currency: string;
+    original: number;
+    discount: number;
   };
+  duration: number;
+  from?: { stopId: string; name: string; address: string };
+  to?: { stopId: string; name: string; address: string };
   availability: {
     totalSeats: number;
     availableSeats: number;
@@ -148,6 +157,6 @@ export interface TripPayload {
   busId: string;
   departureTime: string;
   arrivalTime: string;
-  basePrice: number;
+  originalPrice: number;
   status: TripStatus;
 }

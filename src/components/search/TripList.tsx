@@ -7,6 +7,7 @@ import TripCard from './TripCard';
 import { getTripSeats } from '@/lib/api/trips';
 import type { Trip, Seat } from '@/types/TripTypes';
 import { useSeatTransaction } from '@/hooks/useSeatTransaction';
+import { useRealTimeSeats } from '@/hooks/useSocket';
 
 interface TripListProps {
   trips: Trip[];
@@ -23,6 +24,10 @@ const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChang
   const [bookingTripId, setBookingTripId] = useState<string | null>(null);
   // Details: Multiple IDs allowed
   const [openDetailsIds, setOpenDetailsIds] = useState<Set<string>>(new Set());
+
+  // --- REAL-TIME SEAT UPDATES ---
+  // This hook manages socket connection and listens for seat updates
+  useRealTimeSeats(bookingTripId);
 
   // --- 2. BOOKING DATA STATE (Shared) ---
   const [activeTab, setActiveTab] = useState(0);
@@ -92,6 +97,7 @@ const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChang
   };
 
   const handleToggleBooking = (tripId: string) => {
+    console.log('Đang nhấn vào Trip ID:', tripId);
     // 1. If switching AWAY from another booking, unlock the old one
     if (bookingTripId && bookingTripId !== tripId) {
       unlock(bookingTripId, selectedSeats);
@@ -135,6 +141,7 @@ const TripList: React.FC<TripListProps> = ({ trips, page, pageCount, onPageChang
         alert('Vui lòng chọn ít nhất 1 ghế');
         return;
       }
+
       lock(trip.tripId, selectedSeats);
     } else {
       // Step 2: Navigate to Confirmation
