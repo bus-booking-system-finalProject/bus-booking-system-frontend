@@ -52,8 +52,8 @@ export const ADMIN_TABS: AdminTabItem[] = [
     icon: BarChart3,
   },
   {
-    label: 'Users',
-    path: '/admin/users',
+    label: 'Profiles',
+    path: '/admin/profile',
     icon: UsersIcon,
   },
 ];
