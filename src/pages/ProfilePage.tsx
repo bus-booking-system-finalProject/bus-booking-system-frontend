@@ -136,9 +136,24 @@ const ProfilePage: React.FC = () => {
       setToast({ open: true, msg: 'Đổi mật khẩu thành công!', type: 'success' });
       setPassData({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: unknown) {
-      const error = err as AxiosError<{ message: string }>;
-      const msg = error.response?.data?.message || 'Change password failed';
-      setToast({ open: true, msg, type: 'error' });
+      const error = err as AxiosError<BackendErrorResponse>;
+      const responseData = error.response?.data;
+
+      let displayMsg = 'Đổi mật khẩu thất bại';
+
+      // 1. Check for specific validation errors in "data" (e.g. "New password must be different...")
+      if (responseData?.data && typeof responseData.data === 'object') {
+        const fieldErrors = Object.values(responseData.data);
+        if (fieldErrors.length > 0) {
+          displayMsg = fieldErrors.join('. ');
+        }
+      }
+      // 2. Fallback to the main message (e.g. "Old password does not match")
+      else if (responseData?.message) {
+        displayMsg = responseData.message;
+      }
+
+      setToast({ open: true, msg: displayMsg, type: 'error' });
     }
   };
 

@@ -146,11 +146,7 @@ export const updateProfile = async (data: Partial<UserProfile>): Promise<UserPro
 
 // --- NEW: Change Password ---
 export const changePassword = async (oldPassword: string, newPassword: string): Promise<void> => {
-  try {
-    await apiPrivate.put('/user/password', { oldPassword, newPassword });
-  } catch (err: unknown) {
-    throw new Error(getErrorMessage(err, 'Change password failed'));
-  }
+  await apiPrivate.put('/user/password', { oldPassword, newPassword });
 };
 
 // --- NEW: Upload Avatar ---
