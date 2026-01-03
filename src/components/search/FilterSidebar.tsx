@@ -28,15 +28,15 @@ interface FilterSidebarProps {
   onFilterChange: (newFilters: FilterState) => void;
   onReset: () => void;
   availableOperators: string[];
-  availableBusTypes: string[];
+  // We ignore availableBusTypes from props to enforce the specific 3 types
+  // or you can filter the incoming prop if you prefer.
+  availableBusTypes?: string[];
   maxPrice: number;
 }
 
 // --- HELPER FUNCTIONS ---
 const minutesToTime = (minutes: number): string => {
-  // Fix: Java LocalTime max is 23:59. "24:00" will cause a parsing error.
   if (minutes >= 1440) return '23:59';
-
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
@@ -53,7 +53,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   onFilterChange,
   onReset,
   availableOperators,
-  availableBusTypes,
   maxPrice,
 }) => {
   // 1. LOCAL STATE
@@ -89,11 +88,14 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     }).format(value);
   };
 
+  // --- UPDATED: CONSTANT BUS TYPES ---
+  const FIXED_BUS_TYPES = ['SEATER', 'SLEEPER', 'CABIN'];
+
   const getBusTypeLabel = (type: string): string => {
     const labelMap: Record<string, string> = {
-      standard: 'Ghế ngồi',
-      limousine: 'Limousine',
-      sleeper: 'Giường nằm',
+      SEATER: 'Ghế ngồi',
+      SLEEPER: 'Giường nằm',
+      CABIN: 'Giường phòng',
     };
     return labelMap[type] || type;
   };
@@ -126,7 +128,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     });
   };
 
-  // Generic Checkbox Handler (Used for both Operators and Bus Types now)
   const handleCheckboxChange = (category: keyof FilterState, value: string) => {
     const currentList = filters[category] as string[];
     const newList = currentList.includes(value)
@@ -245,7 +246,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </AccordionDetails>
       </Accordion>
 
-      {/* 4. BUS TYPE (UPDATED: Checkbox for Multi-Select) */}
+      {/* 4. BUS TYPE (UPDATED) */}
       <Accordion
         defaultExpanded
         elevation={0}
@@ -259,7 +260,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>
           <FormGroup>
-            {availableBusTypes.map((type) => (
+            {FIXED_BUS_TYPES.map((type) => (
               <FormControlLabel
                 key={type}
                 control={

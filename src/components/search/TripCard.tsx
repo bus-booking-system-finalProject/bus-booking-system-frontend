@@ -342,7 +342,7 @@ const TripCard: React.FC<TripCardProps> = ({
                     {mapBusTypeToLabel(bus.type)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 2 }}>
-                    {availability.totalSeats} chỗ
+                    {availability.totalSeats}
                   </Typography>
                 </Stack>
 
