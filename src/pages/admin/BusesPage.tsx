@@ -187,7 +187,7 @@ export default function BusesPage() {
             >
               {busModelsQuery.data?.map((model) => (
                 <MenuItem key={model.id} value={model.id}>
-                  {model.name} ({model.typeDisplay} - {model.seatCapacity} seats)
+                  {model.name} ({model.typeDisplay})
                 </MenuItem>
               ))}
             </TextField>

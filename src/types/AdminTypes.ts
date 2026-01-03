@@ -1,7 +1,6 @@
-// src/types/AdminTypes.ts
 
-export type BusType = 'SLEEPER' | 'LIMOUSINE' | 'SEATER' | 'VIP';
-export type TripStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'DELAYED';
+import type { BusType } from "./TripTypes";
+import type { TripStatus } from "./enum/TripStatus";
 
 // --- GENERIC RESPONSE WRAPPER ---
 export interface ApiResponse<T> {

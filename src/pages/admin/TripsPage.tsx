@@ -1,463 +1,238 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  Stack,
-  Typography,
-  CircularProgress,
-  Alert,
-  TextField,
-  Autocomplete,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Card,
-} from '@mui/material';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
-import { Add, Edit, Delete, CalendarMonth, DirectionsBus } from '@mui/icons-material';
-import { useForm, Controller, type SubmitHandler, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { parseISO, addMinutes, format } from 'date-fns';
+import React, { useState, useMemo } from 'react';
+import { useTrips } from '@/hooks/admin/useTrips';
+import { Plus, Search, Calendar, Filter, Trash2, Edit, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
+import type { TripStatus } from '@/types/enum/TripStatus';
 
-// Hooks
-import { useSearchTrips, useMutateTrip } from '@/hooks/admin/useTrips';
-import { useRoutes } from '@/hooks/admin/useRoutes';
-import { useBuses } from '@/hooks/admin/useBuses';
+// Helper to color-code statuses
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'SCHEDULED':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'COMPLETED':
+      return 'bg-green-100 text-green-800 border-green-200';
+    case 'CANCELLED':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'DELAYED':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
 
-// Types
-import type { TripResponse, TripPayload, TripStatus } from '@/types/AdminTypes';
-import { TripSchema, type TripFormValues } from '@/schemas/TripsSchema';
+const TripsPage = () => {
+  const { tripsQuery, deleteTrip } = useTrips();
+  const { data: trips, isLoading } = tripsQuery;
 
-export default function TripsPage() {
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [serverError, setServerError] = useState<string | null>(null);
+  // Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<TripStatus | 'ALL'>('ALL');
+  const [dateFilter, setDateFilter] = useState('');
 
-  // --- QUERIES ---
-  const { data: tripResponse, isLoading: tripsLoading } = useSearchTrips({ page: 1, limit: 100 });
+  // Derived filtered data
+  const filteredTrips = useMemo(() => {
+    if (!trips) return [];
 
-  // FIX: Cast to TripResponse[] because the Hook likely defaults to generic Trip[]
-  const trips = (tripResponse?.data || []) as unknown as TripResponse[];
+    return trips.filter((trip) => {
+      // 1. Search by Route Name (Origin or Destination)
+      const routeName = trip.route.name.toLowerCase();
+      const matchesSearch = routeName.includes(searchTerm.toLowerCase());
 
-  const { data: routes = [] } = useRoutes();
-  const { data: buses = [] } = useBuses();
+      // 2. Filter by Status
+      const matchesStatus = statusFilter === 'ALL' || trip.status === statusFilter;
 
-  // --- MUTATIONS ---
-  const { create, update, delete: remove } = useMutateTrip();
+      // 3. Filter by Date (Comparing YYYY-MM-DD)
+      // FIX: Access departureTime directly (removed .schedules)
+      const tripDate = new Date(trip.departureTime).toISOString().split('T')[0];
+      const matchesDate = !dateFilter || tripDate === dateFilter;
 
-  const { control, handleSubmit, reset, setValue } = useForm<TripFormValues>({
-    resolver: zodResolver(TripSchema),
-    defaultValues: { status: 'SCHEDULED', basePrice: 0 },
-  });
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [trips, searchTerm, statusFilter, dateFilter]);
 
-  // --- Auto-Calculate Arrival Time ---
-  const selectedRouteId = useWatch({ control, name: 'routeId' });
-  const departureTime = useWatch({ control, name: 'departureTime' });
-
-  useEffect(() => {
-    if (selectedRouteId && departureTime) {
-      const route = routes.find((r) => r.id === selectedRouteId);
-      if (route && route.estimatedMinutes) {
-        try {
-          const start = parseISO(departureTime);
-          const end = addMinutes(start, route.estimatedMinutes);
-          if (!isNaN(end.getTime())) {
-            setValue('arrivalTime', format(end, "yyyy-MM-dd'T'HH:mm"));
-          }
-        } catch (e) {
-          console.error('Invalid date calculation', e);
-        }
-      }
-    }
-  }, [selectedRouteId, departureTime, routes, setValue]);
-
-  // --- Handlers (Wrapped in useCallback to fix ESLint/Memo errors) ---
-
-  const handleOpen = useCallback(
-    (trip?: TripResponse) => {
-      setServerError(null);
-      if (trip) {
-        setEditingId(trip.tripId);
-
-        // Reverse lookup: DTO -> ID (use route.name which contains "Origin - Destination")
-        const matchedRoute = routes.find(
-          (r) => `${r.origin} - ${r.destination}` === trip.route.name,
-        );
-        const matchedBus = buses.find((b) => b.model === trip.bus.model);
-
-        reset({
-          routeId: matchedRoute?.id || '',
-          busId: matchedBus?.id || '',
-          departureTime: trip.schedules?.departureTime
-            ? format(parseISO(trip.schedules.departureTime), "yyyy-MM-dd'T'HH:mm")
-            : '',
-          arrivalTime: trip.schedules?.arrivalTime
-            ? format(parseISO(trip.schedules.arrivalTime), "yyyy-MM-dd'T'HH:mm")
-            : '',
-          basePrice: trip.pricing?.original ?? 0,
-          status: trip.status,
-        });
-      } else {
-        setEditingId(null);
-        reset({
-          status: 'SCHEDULED',
-          basePrice: 0,
-          routeId: '',
-          busId: '',
-          departureTime: '',
-          arrivalTime: '',
-        });
-      }
-      setOpen(true);
-    },
-    [routes, buses, reset],
-  );
-
-  const handleClose = () => {
-    setOpen(false);
-    setEditingId(null);
-    reset();
-  };
-
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (confirm('Are you sure you want to delete this trip?')) {
-        remove.mutate(id);
-      }
-    },
-    [remove],
-  );
-
-  const onSubmit: SubmitHandler<TripFormValues> = (data) => {
-    // FIX: Strict typing for the payload
-    const payload: TripPayload = {
-      routeId: data.routeId,
-      busId: data.busId,
-      departureTime: new Date(data.departureTime).toISOString(),
-      arrivalTime: new Date(data.arrivalTime).toISOString(),
-      originalPrice: data.basePrice, // Map form field to backend field name
-      status: data.status as TripStatus,
-    };
-
-    if (editingId) {
-      // Cast payload as 'any' if your useMutateTrip is strictly typed to the Entity,
-      // or ensure useMutateTrip accepts TripPayload.
-      update.mutate(
-        { id: editingId, data: payload as any },
-        { onSuccess: handleClose, onError: (e) => setServerError(e.message) },
-      );
-    } else {
-      create.mutate(payload as any, {
-        onSuccess: handleClose,
-        onError: (e) => setServerError(e.message),
-      });
+  const handleDelete = (id: string) => {
+    if (
+      window.confirm('Are you sure you want to delete this trip? This action cannot be undone.')
+    ) {
+      deleteTrip.mutate(id);
     }
   };
 
-  // --- Columns ---
-  const columns = useMemo<GridColDef<TripResponse>[]>(
-    () => [
-      {
-        field: 'route',
-        headerName: 'Route',
-        width: 250,
-        renderCell: (params) => {
-          const route = params.row.route;
-          if (!route) {
-            return (
-              <Typography variant="body2" color="text.secondary">
-                N/A
-              </Typography>
-            );
-          }
-          return (
-            <Stack>
-              <Typography variant="body2" fontWeight="bold">
-                {route.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {route.durationMinutes} mins
-              </Typography>
-            </Stack>
-          );
-        },
-      },
-      {
-        field: 'bus',
-        headerName: 'Bus',
-        width: 200,
-        renderCell: (params) => {
-          const bus = params.row.bus;
-          if (!bus) {
-            return (
-              <Typography variant="body2" color="text.secondary">
-                N/A
-              </Typography>
-            );
-          }
-          return (
-            <Stack direction="row" alignItems="center" gap={1}>
-              <DirectionsBus fontSize="small" color="action" />
-              <Box>
-                <Typography variant="body2">{bus.model}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {bus.type}
-                </Typography>
-              </Box>
-            </Stack>
-          );
-        },
-      },
-      {
-        field: 'schedules',
-        headerName: 'Schedule',
-        width: 220,
-        renderCell: (params) => {
-          const schedules = params.row.schedules;
-          if (!schedules?.departureTime || !schedules?.arrivalTime) {
-            return (
-              <Typography variant="body2" color="text.secondary">
-                N/A
-              </Typography>
-            );
-          }
-          return (
-            <Stack spacing={0.5} py={1}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="body2" fontWeight={500}>
-                  Dep: {format(parseISO(schedules.departureTime), 'dd/MM HH:mm')}
-                </Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="caption" color="text.secondary">
-                  Arr: {format(parseISO(schedules.arrivalTime), 'dd/MM HH:mm')}
-                </Typography>
-              </Box>
-            </Stack>
-          );
-        },
-      },
-      {
-        field: 'price',
-        headerName: 'Price',
-        width: 140,
-        // FIX: Handle safe valueGetter - use 'original' (matches backend)
-        valueGetter: (_, row) => row.pricing?.original ?? 0,
-        valueFormatter: (value: number) =>
-          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value),
-      },
-      {
-        field: 'status',
-        headerName: 'Status',
-        width: 130,
-        renderCell: (params) => {
-          const colors: Record<string, 'default' | 'success' | 'error' | 'info' | 'warning'> = {
-            SCHEDULED: 'info',
-            COMPLETED: 'success',
-            CANCELLED: 'error',
-            DELAYED: 'warning',
-          };
-          return (
-            <Chip
-              label={params.row.status}
-              color={colors[params.row.status] || 'default'}
-              size="small"
-              variant="outlined"
-            />
-          );
-        },
-      },
-      {
-        field: 'actions',
-        headerName: 'Actions',
-        width: 120,
-        renderCell: (params) => (
-          <Stack direction="row">
-            <IconButton size="small" onClick={() => handleOpen(params.row)}>
-              <Edit fontSize="small" />
-            </IconButton>
-            <IconButton size="small" color="error" onClick={() => handleDelete(params.row.tripId)}>
-              <Delete fontSize="small" />
-            </IconButton>
-          </Stack>
-        ),
-      },
-    ],
-    [handleOpen, handleDelete],
-  ); // FIX: Dependencies now stable via useCallback
-
-  if (tripsLoading) return <CircularProgress sx={{ m: 4 }} />;
+  if (isLoading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <Box sx={{ height: '100%', width: '100%', p: 3, bgcolor: '#f8f9fa' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography
-            variant="h5"
-            sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}
+    <div className="space-y-6 p-6">
+      {/* Page Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Trip Management</h1>
+          <p className="text-sm text-gray-500">Manage schedules, pricing, and bus assignments.</p>
+        </div>
+        <button
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          onClick={() => alert('Navigate to create trip form or open modal')}
+        >
+          <Plus className="h-4 w-4" />
+          Create New Trip
+        </button>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="grid gap-4 rounded-lg border bg-white p-4 shadow-sm md:grid-cols-4">
+        {/* Search */}
+        <div className="relative col-span-2 md:col-span-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search route..."
+            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Status Filter */}
+        <div className="relative">
+          <Filter className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <select
+            className="w-full appearance-none rounded-md border border-gray-300 bg-white py-2 pl-9 pr-8 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as TripStatus | 'ALL')}
           >
-            <CalendarMonth color="primary" /> Trip Management
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Manage schedules, pricing, and availability
-          </Typography>
-        </Box>
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()} size="large">
-          Schedule Trip
-        </Button>
-      </Stack>
+            <option value="ALL">All Statuses</option>
+            <option value="SCHEDULED">Scheduled</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="DELAYED">Delayed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
 
-      <Card sx={{ height: 600, width: '100%', boxShadow: 2 }}>
-        <DataGrid
-          rows={trips}
-          columns={columns}
-          getRowId={(row) => row.tripId}
-          rowHeight={70}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
+        {/* Date Filter */}
+        <div className="relative">
+          <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <input
+            type="date"
+            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+          />
+        </div>
+
+        {/* Clear Filters */}
+        <button
+          onClick={() => {
+            setSearchTerm('');
+            setStatusFilter('ALL');
+            setDateFilter('');
           }}
-          pageSizeOptions={[10, 25, 50]}
-          disableRowSelectionOnClick
-        />
-      </Card>
+          className="text-sm font-medium text-gray-500 hover:text-primary md:text-right"
+        >
+          Clear Filters
+        </button>
+      </div>
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>
-          {editingId ? 'Edit Trip Details' : 'Schedule New Trip'}
-        </DialogTitle>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogContent dividers>
-            <Stack spacing={3}>
-              {serverError && <Alert severity="error">{serverError}</Alert>}
-
-              {/* ROUTE SELECTION */}
-              <Controller
-                name="routeId"
-                control={control}
-                render={({ field }) => (
-                  <Autocomplete
-                    options={routes}
-                    getOptionLabel={(opt) => `${opt.origin} → ${opt.destination}`}
-                    value={routes.find((r) => r.id === field.value) || null}
-                    onChange={(_, val) => field.onChange(val?.id)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Select Route"
-                        required
-                        error={!!field.value && !field.value}
-                      />
-                    )}
-                  />
-                )}
-              />
-
-              {/* BUS SELECTION */}
-              <Controller
-                name="busId"
-                control={control}
-                render={({ field }) => (
-                  <Autocomplete
-                    options={buses}
-                    getOptionLabel={(opt) => `${opt.plateNumber} (${opt.model})`}
-                    value={buses.find((b) => b.id === field.value) || null}
-                    onChange={(_, val) => field.onChange(val?.id)}
-                    renderInput={(params) => <TextField {...params} label="Select Bus" required />}
-                  />
-                )}
-              />
-
-              {/* TIME SELECTION */}
-              <Stack direction="row" spacing={2}>
-                <Controller
-                  name="departureTime"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="datetime-local"
-                      label="Departure"
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  )}
-                />
-                <Controller
-                  name="arrivalTime"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="datetime-local"
-                      label="Arrival"
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      helperText="Auto-calculated"
-                    />
-                  )}
-                />
-              </Stack>
-
-              {/* PRICE AND STATUS */}
-              <Stack direction="row" spacing={2}>
-                <Controller
-                  name="basePrice"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="number"
-                      label="Base Price (VND)"
-                      fullWidth
-                      required
-                      onChange={(e) => field.onChange(+e.target.value)}
-                    />
-                  )}
-                />
-
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth>
-                      <InputLabel>Status</InputLabel>
-                      <Select {...field} label="Status">
-                        <MenuItem value="SCHEDULED">Scheduled</MenuItem>
-                        <MenuItem value="DELAYED">Delayed</MenuItem>
-                        <MenuItem value="COMPLETED">Completed</MenuItem>
-                        <MenuItem value="CANCELLED">Cancelled</MenuItem>
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-              </Stack>
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Button onClick={handleClose} color="inherit">
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={create.isPending || update.isPending}
-            >
-              {editingId ? 'Save Changes' : 'Publish Trip'}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-    </Box>
+      {/* Trips List Table */}
+      <div className="rounded-lg border bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-6 py-4 font-medium text-gray-900">Route</th>
+                <th className="px-6 py-4 font-medium text-gray-900">Departure</th>
+                <th className="px-6 py-4 font-medium text-gray-900">Bus / Model</th>
+                <th className="px-6 py-4 font-medium text-gray-900">Price</th>
+                <th className="px-6 py-4 font-medium text-gray-900">Status</th>
+                <th className="px-6 py-4 font-medium text-gray-900 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredTrips.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    No trips found matching your filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredTrips.map((trip) => (
+                  // FIX: Use trip.id instead of trip.tripId
+                  <tr key={trip.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">{trip.route.name}</div>
+                      {/* Duration removed as it's not in new type, or you can calculate it */}
+                    </td>
+                    <td className="px-6 py-4">
+                      {/* FIX: Access departureTime directly (removed .schedules) */}
+                      <div className="font-medium text-gray-900">
+                        {format(new Date(trip.departureTime), 'HH:mm')}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {format(new Date(trip.departureTime), 'dd MMM yyyy')}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {/* FIX: Bus might be null, so we fallback to busModel */}
+                      <div className="font-medium text-gray-900">
+                        {trip.bus ? trip.bus.plateNumber : trip.busModel.name}
+                      </div>
+                      <div className="text-xs text-gray-500">{trip.busModel.typeDisplay}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {/* FIX: Access prices directly (removed .pricing) */}
+                      <div className="font-medium text-gray-900">
+                        {new Intl.NumberFormat('vi-VN', {
+                          style: 'currency',
+                          currency: 'VND',
+                        }).format(trip.originalPrice)}
+                      </div>
+                      {trip.discountPrice > 0 && (
+                        <div className="text-xs text-red-500 line-through">
+                          {new Intl.NumberFormat('vi-VN', {
+                            style: 'currency',
+                            currency: 'VND',
+                          }).format(trip.discountPrice)}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${getStatusColor(trip.status)}`}
+                      >
+                        {trip.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          className="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+                          title="Edit"
+                          onClick={() => alert(`Edit trip ${trip.id}`)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="rounded-md p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          title="Delete"
+                          onClick={() => handleDelete(trip.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default TripsPage;

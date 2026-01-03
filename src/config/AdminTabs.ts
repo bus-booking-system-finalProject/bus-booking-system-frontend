@@ -7,6 +7,7 @@ import {
   UsersIcon,
   MapPin,
   Settings2,
+  Calendar,
 } from 'lucide-react';
 
 export interface AdminTabItem {
@@ -42,9 +43,14 @@ export const ADMIN_TABS: AdminTabItem[] = [
     path: '/admin/routes',
   },
   {
+    label: 'Trips',
+    icon: Calendar,
+    path: '/admin/trips',
+  },
+  {
     label: 'Trip Scheduling',
     icon: CalendarClock,
-    path: '/admin/trips',
+    path: '/admin/trips/schedules',
   },
   {
     label: 'Analytics',

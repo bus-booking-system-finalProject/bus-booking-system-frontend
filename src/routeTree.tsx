@@ -19,6 +19,8 @@ import { profileRoute } from './routes/ProfileRoute.tsx';
 import { resetPasswordRoute } from './routes/ResetPasswordRoute.tsx';
 import { busModelsRoute } from './routes/admin/BusModelRoute.tsx';
 import { stationsRoute } from './routes/admin/StationRoute.tsx';
+import { tripRoute } from './routes/admin/TripRoute.tsx';
+import { tripSchedulesRoute } from './routes/admin/TripSchedulesRoute.tsx';
 
 export const routeTree = rootRoute.addChildren([
   searchResultRoute,
@@ -42,5 +44,7 @@ export const routeTree = rootRoute.addChildren([
     userRoute,
     busModelsRoute,
     stationsRoute,
+    tripRoute,
+    tripSchedulesRoute,
   ]),
 ]);

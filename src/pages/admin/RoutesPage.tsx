@@ -236,34 +236,45 @@ export default function RoutesPage() {
             <ListItemText
               primary={
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <Typography variant="body2" fontWeight={500}>
-                    {stationsQuery.data?.find((s) => s.id === stop.stationId)?.name ||
-                      'Unknown Station'}
-                  </Typography>
+                  <Tooltip
+                    title={
+                      stationsQuery.data?.find((s) => s.id === stop.stationId)?.name ||
+                      'Unknown Station'
+                    }
+                  >
+                    <Typography variant="body2" fontWeight={500} width={150} noWrap>
+                      {stationsQuery.data?.find((s) => s.id === stop.stationId)?.name ||
+                        'Unknown Station'}
+                    </Typography>
+                  </Tooltip>
                   {/* Origin Flag Chip */}
-                  <Tooltip title="Click to mark as Origin">
-                    <Chip
-                      label="Start"
-                      size="small"
-                      icon={<MapPin size={12} />}
-                      color={stop.isOrigin ? 'success' : 'default'}
-                      variant={stop.isOrigin ? 'filled' : 'outlined'}
-                      onClick={() => setStopFlag(type, index, 'isOrigin')}
-                      sx={{ height: 20, fontSize: '0.7rem', cursor: 'pointer' }}
-                    />
-                  </Tooltip>
+                  {type === 'PICKUP' ? (
+                    <Tooltip title="Click to mark as Origin">
+                      <Chip
+                        label="Start"
+                        size="small"
+                        icon={<MapPin size={12} />}
+                        color={stop.isOrigin ? 'success' : 'default'}
+                        variant={stop.isOrigin ? 'filled' : 'outlined'}
+                        onClick={() => setStopFlag(type, index, 'isOrigin')}
+                        sx={{ height: 20, fontSize: '0.7rem', cursor: 'pointer' }}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Click to mark as Destination">
+                      <Chip
+                        label="End"
+                        size="small"
+                        icon={<Flag size={12} />}
+                        color={stop.isDestination ? 'error' : 'default'}
+                        variant={stop.isDestination ? 'filled' : 'outlined'}
+                        onClick={() => setStopFlag(type, index, 'isDestination')}
+                        sx={{ height: 20, fontSize: '0.7rem', cursor: 'pointer' }}
+                      />
+                    </Tooltip>
+                  )}
+
                   {/* Destination Flag Chip */}
-                  <Tooltip title="Click to mark as Destination">
-                    <Chip
-                      label="End"
-                      size="small"
-                      icon={<Flag size={12} />}
-                      color={stop.isDestination ? 'error' : 'default'}
-                      variant={stop.isDestination ? 'filled' : 'outlined'}
-                      onClick={() => setStopFlag(type, index, 'isDestination')}
-                      sx={{ height: 20, fontSize: '0.7rem', cursor: 'pointer' }}
-                    />
-                  </Tooltip>
                 </Stack>
               }
               secondary={`+${stop.duration} mins offset`}
@@ -291,7 +302,7 @@ export default function RoutesPage() {
       headerName: 'Path',
       flex: 2,
       renderCell: (params) => (
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ height: '100%' }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="body2">{params.row.details?.origin}</Typography>
           <ArrowRight size={14} color="#666" />
           <Typography variant="body2">{params.row.details?.destination}</Typography>
@@ -328,13 +339,8 @@ export default function RoutesPage() {
       headerName: 'Actions',
       width: 100,
       renderCell: (params) => (
-        <Stack direction="row" spacing={1} alignContent="center" sx={{ height: '100%' }}>
-          <IconButton
-            size="small"
-            onClick={() => handleOpen(params.row)}
-            color="primary"
-            sx={{ height: '100%' }}
-          >
+        <Stack direction="row" spacing={1}>
+          <IconButton size="small" onClick={() => handleOpen(params.row)} color="primary">
             <Edit size={18} />
           </IconButton>
           <IconButton
@@ -389,7 +395,7 @@ export default function RoutesPage() {
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
             <Grid container spacing={3}>
               {/* Basic Information */}
-              <Grid sx={{ borderRight: '1px solid #eee', xs: 12, md: 4 }}>
+              <Grid sx={{ xs: 12, md: 4 }}>
                 <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
                   Basic Info
                 </Typography>
@@ -453,20 +459,20 @@ export default function RoutesPage() {
                       select
                       label="Stop Type"
                       size="small"
-                      sx={{ width: 200 }}
+                      sx={{ width: 100 }}
                       value={newStop.type}
                       onChange={(e) =>
                         setNewStop({ ...newStop, type: e.target.value as 'PICKUP' | 'DROPOFF' })
                       }
                     >
-                      <MenuItem value="PICKUP">Pick-up</MenuItem>
-                      <MenuItem value="DROPOFF">Drop-off</MenuItem>
+                      <MenuItem value="PICKUP">Pickup</MenuItem>
+                      <MenuItem value="DROPOFF">Dropoff</MenuItem>
                     </TextField>
                     <TextField
                       select
                       label="Station"
                       size="small"
-                      fullWidth
+                      sx={{ minWidth: 250 }}
                       value={newStop.stationId}
                       onChange={(e) => setNewStop({ ...newStop, stationId: e.target.value })}
                     >
@@ -477,10 +483,10 @@ export default function RoutesPage() {
                       ))}
                     </TextField>
                     <TextField
-                      label="Offset (min)"
+                      label="Minutes"
                       type="number"
                       size="small"
-                      sx={{ width: 120 }}
+                      sx={{ width: 90 }}
                       value={newStop.duration}
                       onChange={(e) => setNewStop({ ...newStop, duration: Number(e.target.value) })}
                     />

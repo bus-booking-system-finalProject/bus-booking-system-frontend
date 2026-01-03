@@ -1,4 +1,4 @@
-export type TripStatus = 'SCHEDULED' | 'CANCELLED' | 'COMPLETED' | 'DELAYED';
+import type { TripStatus } from "./enum/TripStatus";
 
 export type BusType = 'Limousine' | 'Sleeper' | 'Seater';
 
