@@ -26,8 +26,7 @@ export const useBuses = () => {
   });
 
   const updateBus = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: BusRequest }) =>
-      BusesApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: BusRequest }) => BusesApi.update(id, data),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['buses'] });
       showToast(response.message || 'Bus updated successfully', 'success');
