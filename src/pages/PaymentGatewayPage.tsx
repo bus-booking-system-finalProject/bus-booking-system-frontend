@@ -126,13 +126,15 @@ export const PaymentGatewayPage = () => {
     mutationFn: async () => {
       if (!ticketId) throw new Error('No ticket ID');
 
-      // Determine return URL (Current page to handle callback)
-      const currentUrl = `${window.location.origin}${window.location.pathname}?ticketId=${ticketId}`;
+      // Success URL - Navigate to PaymentSuccessPage
+      const successUrl = `${window.location.origin}/payment/success?ticketId=${ticketId}`;
+      // Cancel URL - Stay on current payment page
+      const cancelUrl = `${window.location.origin}${window.location.pathname}?ticketId=${ticketId}`;
 
       return PayOsPayment.createPaymentLink({
         ticketId,
-        returnUrl: currentUrl,
-        cancelUrl: currentUrl,
+        returnUrl: successUrl,
+        cancelUrl: cancelUrl,
       });
     },
     onSuccess: (data) => {
