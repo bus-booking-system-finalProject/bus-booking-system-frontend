@@ -140,12 +140,8 @@ export const resetPassword = async (token: string, newPassword: string): Promise
 
 // --- NEW: Update Profile ---
 export const updateProfile = async (data: Partial<UserProfile>): Promise<UserProfile> => {
-  try {
-    const response = await apiPrivate.put<{ data: UserProfileResponse }>('/user/profile', data);
-    return response.data.data.user;
-  } catch (err: unknown) {
-    throw new Error(getErrorMessage(err, 'Update failed'));
-  }
+  const response = await apiPrivate.put<{ data: UserProfileResponse }>('/user/profile', data);
+  return response.data.data.user;
 };
 
 // --- NEW: Change Password ---

@@ -19,11 +19,20 @@ import {
 } from '@mui/material';
 import { Person, Lock, Save, CameraAlt } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
-import { updateProfile, changePassword, uploadAvatar } from '@/lib/api/AuthApi'; // Import uploadAvatar
+import { updateProfile, changePassword, uploadAvatar } from '@/lib/api/AuthApi';
 import Header from '@/components/layout/Header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { AxiosError } from 'axios';
+import type { UserProfile } from '@/types/auth'; // Import UserProfile type
+// Import UserProfile type
+
+// Correct shape of your backend error response
+interface BackendErrorResponse {
+  success: boolean;
+  message: string;
+  data?: Record<string, string> | null; // "data" can be a map of errors or null
+}
 
 const ProfilePage: React.FC = () => {
   const { user } = useAuth();
@@ -31,6 +40,7 @@ const ProfilePage: React.FC = () => {
   const queryClient = useQueryClient();
   const [tabIndex, setTabIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
   const [toast, setToast] = useState({
     open: false,
     msg: '',
@@ -49,12 +59,11 @@ const ProfilePage: React.FC = () => {
     confirmPassword: '',
   });
 
-  // --- NEW: Handle File Upload ---
+  // --- 1. Handle File Upload (Fixes Header Sync) ---
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // 1. Validate Size (Max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setToast({ open: true, msg: 'File ảnh quá lớn (Max 5MB)', type: 'error' });
       return;
@@ -62,34 +71,58 @@ const ProfilePage: React.FC = () => {
 
     try {
       setIsUploading(true);
-      // 2. Upload to Backend -> Cloudinary
-      const url = await uploadAvatar(file);
+      const newAvatarUrl = await uploadAvatar(file);
 
-      // 3. Update local state with new URL
-      setFormData((prev) => ({ ...prev, avatarUrl: url }));
-      setToast({ open: true, msg: 'Tải ảnh thành công! Nhớ nhấn Lưu thay đổi.', type: 'success' });
+      // A. Update Form State
+      setFormData((prev) => ({ ...prev, avatarUrl: newAvatarUrl }));
+
+      // B. INSTANTLY UPDATE GLOBAL CACHE (Fixes Header)
+      // Since useQuery is disabled in AuthProvider, invalidateQueries won't work alone.
+      // We manually update the cache data.
+      queryClient.setQueryData<UserProfile | null>(['currentUser'], (oldUser) => {
+        if (!oldUser) return null;
+        return { ...oldUser, avatarUrl: newAvatarUrl };
+      });
+
+      setToast({ open: true, msg: 'Tải ảnh thành công!', type: 'success' });
     } catch (err: unknown) {
       let message = 'Lỗi khi tải ảnh';
-
-      if (err instanceof Error) {
-        message = err.message;
-      }
-
+      if (err instanceof Error) message = err.message;
       setToast({ open: true, msg: message, type: 'error' });
     } finally {
       setIsUploading(false);
     }
   };
 
+  // --- 2. Handle Profile Update (Fixes Error Message) ---
   const handleProfileSubmit = async () => {
     try {
-      await updateProfile(formData);
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      const updatedUser = await updateProfile(formData);
+
+      // Update global cache with new profile info (Name/Phone)
+      queryClient.setQueryData(['currentUser'], updatedUser);
+
       setToast({ open: true, msg: 'Cập nhật thông tin thành công!', type: 'success' });
     } catch (err: unknown) {
-      const error = err as AxiosError<{ message: string }>;
-      const msg = error.response?.data?.message || 'Update failed';
-      setToast({ open: true, msg, type: 'error' });
+      const error = err as AxiosError<BackendErrorResponse>;
+      const responseData = error.response?.data;
+
+      let displayMsg = 'Cập nhật thất bại';
+
+      // 1. Check for specific field validation errors in "data"
+      if (responseData?.data && typeof responseData.data === 'object') {
+        const fieldErrors = Object.values(responseData.data);
+        if (fieldErrors.length > 0) {
+          // Join errors: "Full name invalid. Phone number invalid"
+          displayMsg = fieldErrors.join('. ');
+        }
+      }
+      // 2. Fallback to main message
+      else if (responseData?.message) {
+        displayMsg = responseData.message;
+      }
+
+      setToast({ open: true, msg: displayMsg, type: 'error' });
     }
   };
 
@@ -140,7 +173,7 @@ const ProfilePage: React.FC = () => {
             {tabIndex === 0 ? (
               // --- TAB 1: PROFILE INFO ---
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
-                {/* Left Side: Avatar with Upload Logic */}
+                {/* Left Side: Avatar */}
                 <Box sx={{ textAlign: 'center', minWidth: 200 }}>
                   <input
                     accept="image/*"
@@ -218,7 +251,6 @@ const ProfilePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                       fullWidth
                     />
-                    {/* Removed Manual URL Input since we have file upload now */}
 
                     <Button
                       variant="contained"
@@ -270,7 +302,7 @@ const ProfilePage: React.FC = () => {
 
       <Snackbar
         open={toast.open}
-        autoHideDuration={4000}
+        autoHideDuration={6000}
         onClose={() => setToast({ ...toast, open: false })}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >

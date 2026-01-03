@@ -25,7 +25,7 @@ export const PopularRoutesTable: React.FC<{ data?: PopularRoute[] }> = ({ data }
     <Paper sx={{ p: 0, borderRadius: 3, overflow: 'hidden', height: '100%' }}>
       <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography variant="h6" fontWeight={700}>
-          Tuyến đường phổ biến
+          Porpular Routes
         </Typography>
       </Box>
 
@@ -34,12 +34,12 @@ export const PopularRoutesTable: React.FC<{ data?: PopularRoute[] }> = ({ data }
           <TableHead sx={{ bgcolor: 'background.default' }}>
             <TableRow>
               <TableCell sx={{ fontWeight: 600 }}>#</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Tuyến đường</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Routes</TableCell>
               <TableCell align="right" sx={{ fontWeight: 600 }}>
-                Số lượng vé
+                Tickets Booked
               </TableCell>
               <TableCell align="right" sx={{ fontWeight: 600 }}>
-                Doanh thu
+                Total Revenue
               </TableCell>
             </TableRow>
           </TableHead>

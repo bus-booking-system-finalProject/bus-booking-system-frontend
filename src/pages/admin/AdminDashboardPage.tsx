@@ -35,9 +35,7 @@ const AdminDashboardPage: React.FC = () => {
   if (isError) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">
-          Không thể tải dữ liệu thống kê. Vui lòng kiểm tra kết nối hoặc quyền truy cập.
-        </Alert>
+        <Alert severity="error">Cannot load analytics data. Please try again later.</Alert>
       </Box>
     );
   }
@@ -46,11 +44,9 @@ const AdminDashboardPage: React.FC = () => {
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1600, mx: 'auto' }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight={800} gutterBottom>
-          Tổng quan
+          Admin Anaylytics Dashboard
         </Typography>
-        <Typography color="text.secondary">
-          Theo dõi hiệu suất kinh doanh và xu hướng đặt vé của hệ thống.
-        </Typography>
+        <Typography color="text.secondary">Overview of key metrics and analytics</Typography>
       </Box>
 
       {/* 1. Filters */}

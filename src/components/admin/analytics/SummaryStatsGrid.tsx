@@ -69,72 +69,85 @@ export const SummaryStatsGrid: React.FC<{ data?: AnalyticsSummary }> = ({ data }
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: {
-          xs: '1fr', // 1 card per row (Mobile)
-          sm: '1fr 1fr', // 2 cards per row (Tablet)
-          md: 'repeat(3, 1fr)', // 3 cards per row (Desktop - 2 rows total)
-          xl: 'repeat(6, 1fr)', // 6 cards per row (Wide Screens - 1 row total)
-        },
-        gap: 3,
-        mb: 4,
-      }}
-    >
-      {/* 1. DOANH THU */}
-      <StatCard
-        title="Doanh thu"
-        value={formatCurrency(data.totalRevenue)}
-        icon={<AttachMoney fontSize="large" />}
-        color="#10B981" // Emerald 500
-        bgColor="#D1FAE5" // Emerald 100
-      />
+    <Box sx={{ mb: 4 }}>
+      {/* First row with 2 cards */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: '1fr 1fr',
+            md: '1fr 1fr',
+            xl: '1fr 1fr',
+          },
+          gap: 3,
+          mb: 3,
+        }}
+      >
+        {/* 1. Total Revenue */}
+        <StatCard
+          title="Total Revenue"
+          value={formatCurrency(data.totalRevenue)}
+          icon={<AttachMoney fontSize="large" />}
+          color="#10B981"
+          bgColor="#D1FAE5"
+        />
+        {/* 2. Total Tickets */}
+        <StatCard
+          title="Total Tickets"
+          value={data.totalTickets}
+          icon={<ConfirmationNumber fontSize="large" />}
+          color="#3B82F6"
+          bgColor="#DBEAFE"
+        />
+      </Box>
 
-      {/* 2. TỔNG VÉ */}
-      <StatCard
-        title="Tổng vé"
-        value={data.totalTickets}
-        icon={<ConfirmationNumber fontSize="large" />}
-        color="#3B82F6" // Blue 500
-        bgColor="#DBEAFE" // Blue 100
-      />
-
-      {/* 3. ĐÃ THANH TOÁN (Confirmed) */}
-      <StatCard
-        title="Đã thanh toán"
-        value={data.confirmedTickets}
-        icon={<ConfirmationNumberOutlined fontSize="large" />}
-        color="#6366F1" // Indigo 500
-        bgColor="#E0E7FF" // Indigo 100
-      />
-
-      {/* 4. ĐÃ HOÀN THÀNH (Completed) - NEW */}
-      <StatCard
-        title="Đã hoàn thành"
-        value={data.completedTickets}
-        icon={<CheckCircle fontSize="large" />}
-        color="#06B6D4" // Cyan 500
-        bgColor="#CFFAFE" // Cyan 100
-      />
-
-      {/* 5. CHỜ THANH TOÁN (Pending) */}
-      <StatCard
-        title="Chờ thanh toán"
-        value={data.pendingTickets}
-        icon={<PendingActions fontSize="large" />}
-        color="#F59E0B" // Amber 500
-        bgColor="#FEF3C7" // Amber 100
-      />
-
-      {/* 6. ĐÃ HỦY (Cancelled) */}
-      <StatCard
-        title="Đã hủy"
-        value={data.cancelledTickets}
-        icon={<Cancel fontSize="large" />}
-        color="#EF4444" // Red 500
-        bgColor="#FEE2E2" // Red 100
-      />
+      {/* Second row with 4 cards */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: '1fr 1fr',
+            md: 'repeat(4, 1fr)',
+            xl: 'repeat(4, 1fr)',
+          },
+          gap: 3,
+        }}
+      >
+        {/* 3. Confirmed */}
+        <StatCard
+          title="Confirmed"
+          value={data.confirmedTickets}
+          icon={<ConfirmationNumberOutlined fontSize="large" />}
+          color="#6366F1"
+          bgColor="#E0E7FF"
+        />
+        {/* 4. Completed */}
+        <StatCard
+          title="Completed"
+          value={data.completedTickets}
+          icon={<CheckCircle fontSize="large" />}
+          color="#06B6D4"
+          bgColor="#CFFAFE"
+        />
+        {/* 5. Pending */}
+        <StatCard
+          title="Pending"
+          value={data.pendingTickets}
+          icon={<PendingActions fontSize="large" />}
+          color="#F59E0B"
+          bgColor="#FEF3C7"
+        />
+        {/* 6. Cancelled */}
+        <StatCard
+          title="Cancelled"
+          value={data.cancelledTickets}
+          icon={<Cancel fontSize="large" />}
+          color="#EF4444"
+          bgColor="#FEE2E2"
+        />
+      </Box>
     </Box>
   );
 };

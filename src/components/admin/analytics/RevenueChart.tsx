@@ -36,7 +36,7 @@ export const RevenueChart: React.FC<{ data?: RevenueTrend[] }> = ({ data }) => {
   return (
     <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
       <Typography variant="h6" fontWeight={700} gutterBottom>
-        Biểu đồ doanh thu
+        Revenue
       </Typography>
 
       <Box sx={{ width: '100%', height: 350 }}>
@@ -66,8 +66,8 @@ export const RevenueChart: React.FC<{ data?: RevenueTrend[] }> = ({ data }) => {
               tickFormatter={(num) => `${(num / 1000000).toFixed(0)}M`} // Show in Millions
             />
             <Tooltip
-              formatter={(value: number) => [formatCurrency(value), 'Doanh thu']}
-              labelFormatter={(label) => `Ngày: ${new Date(label).toLocaleDateString('vi-VN')}`}
+              formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+              labelFormatter={(label) => `Date: ${new Date(label).toLocaleDateString('vi-VN')}`}
               contentStyle={{
                 borderRadius: 8,
                 border: 'none',

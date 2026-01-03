@@ -25,7 +25,7 @@ export const AnalyticsFilter: React.FC<AnalyticsFilterProps> = ({
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" sx={{ mb: 3 }}>
       <TextField
-        label="Từ ngày"
+        label="From Date"
         type="date"
         size="small"
         value={startDate}
@@ -33,7 +33,7 @@ export const AnalyticsFilter: React.FC<AnalyticsFilterProps> = ({
         InputLabelProps={{ shrink: true }}
       />
       <TextField
-        label="Đến ngày"
+        label="To Date"
         type="date"
         size="small"
         value={endDate}
@@ -43,10 +43,10 @@ export const AnalyticsFilter: React.FC<AnalyticsFilterProps> = ({
 
       <Box sx={{ display: 'flex', gap: 1 }}>
         <Button variant="outlined" size="small" onClick={() => handleRangeSelect(7)}>
-          7 ngày
+          7 days
         </Button>
         <Button variant="outlined" size="small" onClick={() => handleRangeSelect(30)}>
-          30 ngày
+          30 days
         </Button>
       </Box>
     </Stack>

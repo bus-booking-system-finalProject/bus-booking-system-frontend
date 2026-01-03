@@ -10,12 +10,11 @@ export const ConversionMetric: React.FC<{ data?: ConversionRate }> = ({ data }) 
   return (
     <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
       <Typography variant="h6" fontWeight={700} gutterBottom>
-        Tỷ lệ chuyển đổi
+        Conversion Rate
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 2 }}>
-        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-          <Percent sx={{ fontSize: 60, color: 'primary.main', opacity: 0.2 }} />
+        <Box sx={{ position: 'relative', display: 'inline-flex', width: 60, height: 60 }}>
           <Typography
             variant="h3"
             component="div"
@@ -42,7 +41,7 @@ export const ConversionMetric: React.FC<{ data?: ConversionRate }> = ({ data }) 
           <Stack direction="row" spacing={1} alignItems="center">
             <Search color="action" fontSize="small" />
             <Typography variant="body2" color="text.secondary">
-              Lượt tìm kiếm
+              Search counts
             </Typography>
           </Stack>
           <Typography fontWeight={600}>{data.totalSearches}</Typography>
@@ -54,16 +53,18 @@ export const ConversionMetric: React.FC<{ data?: ConversionRate }> = ({ data }) 
           <Stack direction="row" spacing={1} alignItems="center">
             <TouchApp color="action" fontSize="small" />
             <Typography variant="body2" color="text.secondary">
-              Lượt đặt vé
+              Ticket bookings
             </Typography>
           </Stack>
           <Typography fontWeight={600}>{data.totalBookings}</Typography>
         </Stack>
 
         <Box sx={{ pt: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-            Hiệu suất
-          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mb: 0.5, display: 'block' }}
+          ></Typography>
           <LinearProgress
             variant="determinate"
             value={Math.min(data.conversionRatePercentage, 100)}
