@@ -15,6 +15,7 @@ export const StationsApi = {
         return data;
     },
     delete: async (id: string) => {
-        await apiPrivate.delete(`/admin/stations/${id}`);
+        const { data } = await apiPrivate.delete(`/admin/stations/${id}`);
+        return data;
     },
 };
