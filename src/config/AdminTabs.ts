@@ -53,11 +53,6 @@ export const ADMIN_TABS: AdminTabItem[] = [
     path: '/admin/trips/schedules',
   },
   {
-    label: 'Analytics',
-    path: '/admin/analytics',
-    icon: BarChart3,
-  },
-  {
     label: 'Profiles',
     path: '/admin/profile',
     icon: UsersIcon,
