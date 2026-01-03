@@ -277,6 +277,13 @@ function Header() {
                       alt={user.email}
                       src={user.avatarUrl} // <--- Updated here
                       sx={{ bgcolor: 'primary.dark' }}
+                      slotProps={{
+                        img: {
+                          sx: {
+                            objectFit: 'cover', // This crops the image to fit the circle
+                          },
+                        },
+                      }}
                     >
                       {user.email ? user.email[0].toUpperCase() : null}
                     </Avatar>

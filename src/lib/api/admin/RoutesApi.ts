@@ -20,6 +20,7 @@ export const RoutesApi = {
     return data;
   },
   delete: async (id: string) => {
-    await apiPrivate.delete(`/admin/routes/${id}`);
+    const { data } = await apiPrivate.delete<ApiResponse<RouteResponse>>(`/admin/routes/${id}`);
+    return data;
   },
 };

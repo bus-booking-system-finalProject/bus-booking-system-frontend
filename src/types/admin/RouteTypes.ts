@@ -6,7 +6,7 @@ export interface RouteRequest {
     estimatedMinutes: number;
     pickupStops: RouteStopRequest[];
     dropoffStops: RouteStopRequest[];
-    isActive: boolean;
+    isActive: boolean
 }
 
 export interface RouteStopRequest {
