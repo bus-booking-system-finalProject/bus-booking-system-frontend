@@ -71,9 +71,33 @@ const getTodayString = () => {
   return `${year}-${month}-${day}`;
 };
 
+// Convert ISO string or YYYY-MM-DD to YYYY-MM-DD format for input[type="date"]
+const toDateString = (dateValue: string | null): string => {
+  if (!dateValue) return getTodayString();
+  // If it's already YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
+  // If it's ISO string, extract date part
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return getTodayString();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch {
+    return getTodayString();
+  }
+};
+
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
+  // Handle both YYYY-MM-DD and ISO string formats
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
+    ? new Date(dateString + 'T00:00:00')
+    : new Date(dateString);
+  if (isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('vi-VN', {
     weekday: 'short',
     day: '2-digit',
@@ -91,11 +115,13 @@ const getInitialState = () => {
   const urlReturn = params.get('returnDate');
 
   if (urlOrigin || urlDest || urlDate) {
+    // Convert URL date (could be ISO string) to YYYY-MM-DD format
+    const parsedDate = urlDate ? toDateString(urlDate) : today;
     return {
       origin: urlOrigin ? decodeURIComponent(urlOrigin) : null,
       destination: urlDest ? decodeURIComponent(urlDest) : null,
-      departDate: urlDate || today,
-      returnDate: urlReturn || '',
+      departDate: parsedDate >= today ? parsedDate : today,
+      returnDate: urlReturn ? toDateString(urlReturn) : '',
     };
   }
 
@@ -336,12 +362,27 @@ const SearchWidget: React.FC = () => {
       return;
     }
 
+    const today = getTodayString();
+    let departureTimeUTC: string;
+
+    if (departDate === today) {
+      // Same day: send current UTC time so BE can filter trips after now
+      departureTimeUTC = new Date().toISOString();
+    } else {
+      // Different day: send start of day (00:00:00) in UTC
+      departureTimeUTC = departDate + 'T00:00:00.000Z';
+    }
+
+    // Get user's timezone (e.g., "Asia/Ho_Chi_Minh")
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     navigate({
       to: '/search-results',
       search: {
         origin: origin,
         destination: destination,
-        date: departDate,
+        date: departureTimeUTC,
+        timezone: userTimezone,
         returnDate: returnDate || undefined,
         page: 1,
         limit: 5,

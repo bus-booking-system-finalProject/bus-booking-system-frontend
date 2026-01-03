@@ -15,6 +15,7 @@ export interface SearchTripsParams {
   origin: string;
   destination: string;
   date: string;
+  timezone?: string;
   passengers?: number;
   page?: number;
   limit?: number;
@@ -46,6 +47,7 @@ export const searchTrips = async (params: SearchTripsParams): Promise<SearchResp
     origin: params.origin,
     destination: params.destination,
     date: params.date,
+    timezone: params.timezone,
     passengers: params.passengers || 1,
     page: params.page || 1,
     limit: params.limit || 20,

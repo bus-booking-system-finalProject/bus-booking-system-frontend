@@ -67,6 +67,7 @@ const SearchResultsPage: React.FC = () => {
       searchParams.origin,
       searchParams.destination,
       searchParams.date,
+      searchParams.timezone,
       page,
       limit,
       sortOption,
@@ -82,6 +83,7 @@ const SearchResultsPage: React.FC = () => {
         origin: searchParams.origin || '',
         destination: searchParams.destination || '',
         date: searchParams.date || new Date().toISOString().split('T')[0],
+        timezone: searchParams.timezone,
         page,
         limit: limit,
         sort: sortOption, // simplified
@@ -96,34 +98,19 @@ const SearchResultsPage: React.FC = () => {
     enabled: !!searchParams.origin && !!searchParams.destination,
   });
 
-  // 2b. Fetch unfiltered data to get all available filter options
-  const { data: allTripsData } = useQuery({
-    queryKey: [
-      'trips-all-options',
-      searchParams.origin,
-      searchParams.destination,
-      searchParams.date,
-    ],
-    queryFn: () =>
-      searchTrips({
-        origin: searchParams.origin || '',
-        destination: searchParams.destination || '',
-        date: searchParams.date || new Date().toISOString().split('T')[0],
-        limit: 1000,
-      }),
-    enabled: !!searchParams.origin && !!searchParams.destination,
-  });
-
-  // 3. Extract available filter options from unfiltered API data
+  // 3. Extract available filter options from API data
   const availableFilters = useMemo(() => {
-    if (!allTripsData?.data) return { operators: [], busTypes: [], maxPrice: 1000000 };
+    if (!tripData?.data) return { operators: [], busTypes: [], maxPrice: 1000000 };
 
-    const operatorList = [...new Set(allTripsData.data.map((t: Trip) => t.operator.name))];
-    const busTypeList = [...new Set(allTripsData.data.map((t: Trip) => t.bus.type))];
-    const maxPrice = Math.max(...allTripsData.data.map((t: Trip) => t.pricing.original));
+    const operatorList = [...new Set(tripData.data.map((t: Trip) => t.operator.name))];
+    const busTypeList = [...new Set(tripData.data.map((t: Trip) => t.bus.type))];
+    const maxPrice =
+      tripData.data.length > 0
+        ? Math.max(...tripData.data.map((t: Trip) => t.pricing.original))
+        : 1000000;
 
     return { operators: operatorList, busTypes: busTypeList, maxPrice };
-  }, [allTripsData]);
+  }, [tripData]);
 
   // 4. Handle filter changes - update URL params
   const handleFilterChange = (newFilters: FilterState) => {

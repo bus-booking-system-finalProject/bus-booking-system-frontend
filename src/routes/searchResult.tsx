@@ -9,6 +9,7 @@ const tripSearchSchema = z.object({
   origin: z.string().optional(),
   destination: z.string().optional(),
   date: z.string().optional(),
+  timezone: z.string().optional(),
   returnDate: z.string().optional(),
   page: z.number().default(1).optional(),
   limit: z.number().default(5).optional(),
