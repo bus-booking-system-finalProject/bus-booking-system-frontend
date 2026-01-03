@@ -91,7 +91,7 @@ const BookingCheckoutPage: React.FC = () => {
 
   // --- API: Submit Feedback ---
   const submitFeedback = async (payload: FeedbackPayload) => {
-    const response = await apiPrivate.post('/feedback', payload);
+    const response = await apiPrivate.post('/booking/feedback', payload);
     return response.data;
   };
 

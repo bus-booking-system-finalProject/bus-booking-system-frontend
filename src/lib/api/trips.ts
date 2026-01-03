@@ -135,7 +135,7 @@ export const getOperatorReviews = async (
 ): Promise<OperatorReviewsResponse> => {
   // Using apiClient because authentication is not required for viewing reviews
   const response = await apiClient.get<{ success: boolean; data: OperatorReviewsResponse }>(
-    `/reviews/${operatorId}`,
+    `/booking/reviews/${operatorId}`,
     {
       params: { page, limit },
     },
@@ -145,7 +145,7 @@ export const getOperatorReviews = async (
 
 export const getMyFeedback = async (tripId: string): Promise<FeedbackResponse | null> => {
   const response = await apiPrivate.get<{ success: boolean; data: FeedbackResponse | null }>(
-    '/feedback/me',
+    '/booking/feedback/me',
     { params: { tripId } },
   );
   return response.data.data;

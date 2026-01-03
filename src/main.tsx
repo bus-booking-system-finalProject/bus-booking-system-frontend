@@ -51,7 +51,6 @@ export function InnerApp() {
           isLoadingUser: auth.isLoadingUser,
         },
       }}
-      basepath="/bus-booking-system-frontend/"
     />
   );
 }
