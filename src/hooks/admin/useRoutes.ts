@@ -25,8 +25,7 @@ export const useRoutes = () => {
   });
 
   const updateRoute = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: RouteRequest }) =>
-      RoutesApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: RouteRequest }) => RoutesApi.update(id, data),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['routes'] });
       showToast(response?.message || 'Route updated successfully', 'success');

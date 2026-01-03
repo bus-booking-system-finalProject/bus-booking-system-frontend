@@ -3,6 +3,4 @@ export interface NavItem {
   path: string;
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { label: 'Tra cứu vé', path: '/tickets' },
-];
+export const NAV_ITEMS: NavItem[] = [{ label: 'Tra cứu vé', path: '/tickets' }];
