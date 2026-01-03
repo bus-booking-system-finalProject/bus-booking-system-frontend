@@ -99,17 +99,17 @@ const SearchResultsPage: React.FC = () => {
   });
 
   // 3. Extract available filter options from API data
+  // FIX: Use a fixed maxPrice constant to prevent slider from changing when filtering
+  const MAX_PRICE_LIMIT = 500000;
+
   const availableFilters = useMemo(() => {
-    if (!tripData?.data) return { operators: [], busTypes: [], maxPrice: 1000000 };
+    if (!tripData?.data) return { operators: [], busTypes: [], maxPrice: MAX_PRICE_LIMIT };
 
     const operatorList = [...new Set(tripData.data.map((t: Trip) => t.operator.name))];
     const busTypeList = [...new Set(tripData.data.map((t: Trip) => t.bus.type))];
-    const maxPrice =
-      tripData.data.length > 0
-        ? Math.max(...tripData.data.map((t: Trip) => t.pricing.original))
-        : 1000000;
 
-    return { operators: operatorList, busTypes: busTypeList, maxPrice };
+    // Keep maxPrice fixed to prevent slider from shrinking when filtering
+    return { operators: operatorList, busTypes: busTypeList, maxPrice: MAX_PRICE_LIMIT };
   }, [tripData]);
 
   // 4. Handle filter changes - update URL params
