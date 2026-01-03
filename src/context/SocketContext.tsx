@@ -1,35 +1,8 @@
 // src/context/SocketContext.tsx - Global Socket.IO Context Provider
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useEffect, useState, useCallback, useRef } from 'react';
 import { socket, socketEvents, connectSocket, disconnectSocket } from '@/lib/utils/socket';
-import type {
-  SocketState,
-  SeatUpdateEvent,
-  BookingConfirmedEvent,
-  TripStatusEvent,
-  NotificationEvent,
-} from '@/types/SocketTypes';
-
-// --- CONTEXT VALUE INTERFACE ---
-interface SocketContextValue {
-  // Connection state
-  state: SocketState;
-
-  // Connection controls
-  connect: () => void;
-  disconnect: () => void;
-
-  // Room management
-  joinTrip: (tripId: string) => void;
-  leaveTrip: (tripId: string) => void;
-  subscribeBooking: (ticketCode: string) => void;
-  unsubscribeBooking: (ticketCode: string) => void;
-
-  // Event subscriptions
-  onSeatUpdate: (callback: (data: SeatUpdateEvent) => void) => () => void;
-  onBookingConfirmed: (callback: (data: BookingConfirmedEvent) => void) => () => void;
-  onTripStatus: (callback: (data: TripStatusEvent) => void) => () => void;
-  onNotification: (callback: (data: NotificationEvent) => void) => () => void;
-}
+import type { SocketState } from '@/types/SocketTypes';
+import type { SocketContextValue } from '@/hooks/useSocketContext';
 
 // --- CREATE CONTEXT ---
 const SocketContext = createContext<SocketContextValue | null>(null);
@@ -176,15 +149,6 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
-};
-
-// --- CUSTOM HOOK ---
-export const useSocketContext = (): SocketContextValue => {
-  const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error('useSocketContext must be used within a SocketProvider');
-  }
-  return context;
 };
 
 export default SocketContext;

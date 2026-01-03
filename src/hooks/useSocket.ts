@@ -1,7 +1,7 @@
 // src/hooks/useSocket.ts - Custom hooks for Socket.IO functionality
 import { useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSocketContext } from '@/context/SocketContext';
+import { useSocketContext } from '@/hooks/useSocketContext';
 import type { SeatUpdateEvent, BookingConfirmedEvent, TripStatusEvent } from '@/types/SocketTypes';
 
 /**

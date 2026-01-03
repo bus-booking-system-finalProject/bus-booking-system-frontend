@@ -3,7 +3,7 @@ import React, { useEffect, useReducer } from 'react';
 import { Snackbar, Alert, AlertTitle, Slide, IconButton, Typography, Box } from '@mui/material';
 import { Close, DirectionsBus, ConfirmationNumber, Info, Warning } from '@mui/icons-material';
 import type { SlideProps } from '@mui/material/Slide';
-import { useSocketContext } from '@/context/SocketContext';
+import { useSocketContext } from '@/hooks/useSocketContext';
 import type { BookingConfirmedEvent, TripStatusEvent, NotificationType } from '@/types/SocketTypes';
 
 // --- NOTIFICATION ITEM INTERFACE ---

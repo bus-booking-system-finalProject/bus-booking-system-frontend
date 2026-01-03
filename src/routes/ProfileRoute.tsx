@@ -1,7 +1,6 @@
 import { createRoute, redirect } from '@tanstack/react-router';
 import { rootRoute } from '@/routes/RootRoute'; // Import rootRoute to link parent
-import ProfilePage from '@/pages/ProfilePage';
-import { useAuth } from '@/hooks/useAuth';
+import { ProfilePageWrapper } from '@/components/ProfilePageWrapper';
 
 export const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -19,13 +18,3 @@ export const profileRoute = createRoute({
     }
   },
 });
-
-// 2. Wrapper to Force Remount when User ID Changes
-function ProfilePageWrapper() {
-  const { user } = useAuth();
-
-  // The 'key' forces React to destroy and recreate ProfilePage
-  // whenever the user loads or changes.
-  // This removes the need for useEffect inside ProfilePage to sync state.
-  return <ProfilePage key={user?.id || 'loading'} />;
-}
