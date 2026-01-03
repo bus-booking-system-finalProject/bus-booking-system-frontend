@@ -13,6 +13,7 @@ import { historyRoute } from './routes/HistoryRoute.tsx';
 import { analyticsRoute } from './routes/admin/AnalyticsRoute.tsx';
 import { bookingConfirmationRoute } from './routes/BookingConfirmationRoute.tsx';
 import { bookingPaymentRoute } from './routes/BookingPaymentRoute.tsx';
+import { paymentSuccessRoute } from './routes/PaymentSuccessRoute.tsx';
 import { userRoute } from './routes/admin/UserRoute';
 import { verifyEmailRoute } from './routes/VerifyEmailRoute.tsx';
 import { profileRoute } from './routes/ProfileRoute.tsx';
@@ -30,6 +31,7 @@ export const routeTree = rootRoute.addChildren([
     bookingConfirmationRoute,
     bookingCheckoutRoute,
     bookingPaymentRoute,
+    paymentSuccessRoute,
     findTicketRoute,
     historyRoute,
     verifyEmailRoute,
